@@ -13,36 +13,29 @@ FONT = pg.font.Font(None, 32)
 
 class InputBox:
 
-    def __init__(self, x, y, w, h, text=''):
+    def __init__(self, x, y, w, h, text='', max_len=10):
         self.rect = pygame.Rect(x, y, w, h)
         self.color = (255, 255, 255)
         self.text = text
         self.txt_surface = game_font.render(text, True, self.color)
-        self.active = False
+        # auto-activate for keyboard-only flow
+        self.active = True
         self.finished = False
+        self.max_len = max_len
 
     def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            # If the user clicked on the input_box rect.
-            if self.rect.collidepoint(event.pos):
-                # Toggle the active variable.
-                self.active = not self.active
-            else:
-                self.active = False
-            # Change the current color of the input box.
-            self.color = (255, 255, 255) if self.active else (255, 0, 255)
+        # Mouse input ignored (keyboard-only control)
         if event.type == pygame.KEYDOWN:
-            if event.key == K_ESCAPE:
-                    exit_game(screen)
+            # ESC ignored here (handled by main loop for pause)
             if self.active:
                 if event.key == pygame.K_RETURN:
-                    print(self.text)
-                    self.text = ''
+                    # mark finished; main loop will read self.text
+                    self.finished = True
                 elif event.key == pygame.K_BACKSPACE:
                     self.text = self.text[:-1]
                 else:
-                    if len(self.text) < 3:
-                        self.text += event.unicode
+                    if len(self.text) < self.max_len and event.unicode and event.unicode.isprintable():
+                        self.text += event.unicode.upper()
                 # Re-render the text.
                 self.txt_surface = game_font.render(self.text, True, self.color)
 
@@ -52,12 +45,11 @@ class InputBox:
         self.rect.w = width
 
     def draw(self, screen):
-        screen.fill(BACKGROUND)
         # Blit the text.
         screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
         # Blit the rect.
         pygame.draw.rect(screen, self.color, self.rect, 2)
-        pygame.display.update()
+        # display update handled by caller
     
     def check_finished(self):
         return self.finished

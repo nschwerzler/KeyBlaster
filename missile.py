@@ -82,11 +82,6 @@ class Missile():
             points_multiplier = 0
             explosion_radius = NUKE_RADIUS
             explosion_color = NUKE_EXPLOSION
-            try:
-                from functions import sfx_nuke
-                sfx_nuke()
-            except Exception:
-                pass
 
         explosion_list.append(Explosion(self.pos, points_multiplier, explosion_radius, explosion_color))
 

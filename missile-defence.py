@@ -23,14 +23,20 @@ screen = pygame.display.set_mode(SCREENSIZE)
 pygame.mouse.set_visible(SHOW_MOUSE)
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
+# Ignore all mouse events to enforce keyboard-only controls
+try:
+    pygame.event.set_blocked([pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEWHEEL])
+except Exception:
+    pass
 try:
     from functions import init_audio
     init_audio()
 except Exception:
     pass
 
-# Typing keys allowed (matches label generation; excludes 'p' pause key)
-ALLOWED_TYPING_KEYS = set(list("qwertyuio") + list("asdfghjkl;") + list("zxcvbnm"))
+# Typing behavior
+ALLOWED_TYPING_KEYS = set(list("qwertyuiop") + list("asdfghjkl;") + list("zxcvbnm"))  # labels include 'p'
+RESERVED_TYPING_KEYS = set()  # no reserved typing keys; only ESC pauses
 
 
 def main():
@@ -71,32 +77,22 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit(0)
-            if event.type == MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    # primary mouse button
-                    defence.shoot(missile_list)
-                if event.button == 2:
-                    # middle mouse button
-                    pass
-                if event.button == 3:
-                    # right mouse button
-                    pass
             if event.type == KEYDOWN:
-                # Always allow immediate exit
+                # ESC pauses the game (no exit prompt)
                 if event.key == K_ESCAPE:
-                    exit_game(screen)
+                    pause_game(screen)
 
                 handled = False
                 # typing-driven interception: if a labeled key is pressed, trigger an explosion
                 # use event.unicode for character; ignore non-printable keys
                 if hasattr(event, 'unicode') and event.unicode:
                     ch = event.unicode.lower()
-                    # only react to typing keys used for labels
-                    valid_typing_key = ch in ALLOWED_TYPING_KEYS
+                    # react to printable single characters that aren't reserved hotkeys
+                    printable_key = len(ch) == 1 and ch.isprintable() and ch not in RESERVED_TYPING_KEYS
                     # find the best matching missile (closest to impact)
                     target_missile = None
                     closest_remaining = None
-                    if valid_typing_key:
+                    if printable_key:
                         for m in missile_list:
                             if getattr(m, 'label', None) and str(m.label).lower() == ch:
                                 remaining = max(0, m.dist_to_target - m.travel_dist)
@@ -115,19 +111,18 @@ def main():
                             play_random_explode()
                         except Exception:
                             pass
-                    elif valid_typing_key:
-                        # wrong typing key (not present on screen): play annoying system sound
+                    elif printable_key:
+                        # wrong typing key (not present on screen): play miss sound
                         try:
-                            from functions import sfx_wrong_key
-                            sfx_wrong_key()
+                            from functions import play_random_miss
+                            play_random_miss()
                         except Exception:
                             pass
 
                 # legacy controls only if not handled by typing action
                 if not handled and event.key == K_SPACE:
                     defence.shoot(missile_list)
-                if not handled and event.key == K_p:
-                    pause_game(screen)
+                # 'p' no longer pauses; only ESC toggles pause
             if event.type == KEYUP:
                 pass
 
@@ -183,16 +178,46 @@ def main():
         
         # hold for few seconds before proceeding to high-score or back to menu or game over splash
         if current_game_state == GAME_STATE_OVER:
-            input_box = InputBox(100, 100, 140, 32)
+            # Create a wider input box and allow at least 10 chars
+            input_box = InputBox(SCREENSIZE[0]//2 - 150, SCREENSIZE[1]//2 + 70, 300, 32, max_len=10)
+            name = ""
             while input_box.check_finished() == False:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         pygame.quit()
                         sys.exit(0)
+                    if event.type == KEYDOWN and event.key == K_ESCAPE:
+                        # allow pause on ESC during game over as well
+                        pause_game(screen)
                     input_box.handle_event(event)
                 input_box.update()
+
+                # redraw game over screen + prompt each frame
+                screen.fill(BACKGROUND)
+                # draw game over text and score with spacing
+                # use same text as mcgame.game_over but manage vertical spacing to avoid overlap
+                game_over_msg = game_font.render("YOU'RE CITIES HAVE BEEN ANNIHILATED", False, INTERFACE_SEC)
+                score_msg = game_font.render('SCORE: {}'.format(mcgame.get_player_score()), False, INTERFACE_SEC)
+                go_y = SCREENSIZE[1]//2 - game_over_msg.get_height() - 20
+                score_y = go_y + game_over_msg.get_height() + 10
+                screen.blit(game_over_msg, (SCREENSIZE[0]//2 - (game_over_msg.get_width()//2), go_y))
+                screen.blit(score_msg, (SCREENSIZE[0]//2 - (score_msg.get_width()//2), score_y))
+
+                prompt = game_font.render('ENTER NAME (10) THEN PRESS ENTER', False, INTERFACE_SEC)
+                prompt_y = score_y + score_msg.get_height() + 20
+                screen.blit(prompt, (SCREENSIZE[0]//2 - (prompt.get_width()//2), prompt_y))
                 input_box.draw(screen)
-                
+                pygame.display.update()
+
+            name = input_box.text if input_box.text else "---"
+            # update and save high scores
+            try:
+                score = mcgame.get_player_score()
+                high_scores = update_high_scores(score, name, high_scores)
+                save_high_scores("scores.json", high_scores)
+            except Exception:
+                pass
+
             current_game_state = GAME_STATE_MENU
         
         # display the high scores

@@ -106,7 +106,7 @@ class McGame():
 
     # choose a keyboard key label with home-row bias
     def _choose_key_label(self):
-        top_row = list("qwertyuio")  # exclude 'p' to avoid pause hotkey clash
+        top_row = list("qwertyuiop")
         home_row = list("asdfghjkl;")
         bottom_row = list("zxcvbnm")
         keys = top_row + home_row + bottom_row

@@ -37,30 +37,45 @@ def sfx_nuke():
 
 # Optional: load custom explode SFX from data/sfx
 _AUDIO_READY = False
-_EXPLODE_SOUNDS = []  # list[pygame.mixer.Sound]
-_EXPLODE_BAG = []     # shuffled bag to reduce repeats
-_LAST_EXPLODE = None  # last Sound object played
+_EXPLODE_SOUNDS = []   # list[pygame.mixer.Sound]
+_EXPLODE_BAG = []      # shuffled bag to reduce repeats
+_LAST_EXPLODE = None   # last Sound object played
+_EXPLODE_FILES = []    # file path fallbacks
+_CITYDOWN_SOUNDS = []  # list[pygame.mixer.Sound]
+_CITYDOWN_BAG = []     # shuffled bag to reduce repeats
+_LAST_CITYDOWN = None  # last Sound object played
+_CITYDOWN_FILES = []   # file path fallbacks
+_MISS_SOUNDS = []      # list[pygame.mixer.Sound]
+_MISS_BAG = []         # shuffled bag to reduce repeats
+_LAST_MISS = None      # last Sound object played
+_MISS_FILES = []       # file path fallbacks
 
 def init_audio():
-    global _AUDIO_READY, _EXPLODE_SOUNDS
+    global _AUDIO_READY
+    # Ensure we mutate module-level state, not locals
+    global _EXPLODE_SOUNDS, _EXPLODE_BAG, _LAST_EXPLODE, _EXPLODE_FILES
+    global _CITYDOWN_SOUNDS, _CITYDOWN_BAG, _LAST_CITYDOWN, _CITYDOWN_FILES
+    global _MISS_SOUNDS, _MISS_BAG, _LAST_MISS, _MISS_FILES
     if _AUDIO_READY:
         return
     try:
         if not pygame.mixer.get_init():
             pygame.mixer.init()
-        # Load all explode sounds from data/sfx with common extensions
-        base = os.path.join('data', 'sfx')
-        patterns = [
-            os.path.join(base, 'Explode*.mp3'),
-            os.path.join(base, 'Explode*.ogg'),
-            os.path.join(base, 'Explode*.wav'),
-        ]
+        # Support both data/sfx and sfx directories
+        base_dirs = [os.path.join('data', 'sfx'), 'sfx']
+        # Load all explode sounds with common extensions
         files = []
-        for pat in patterns:
-            try:
-                files.extend(glob.glob(pat))
-            except Exception:
-                pass
+        for base in base_dirs:
+            patterns = [
+                os.path.join(base, 'Explode*.mp3'),
+                os.path.join(base, 'Explode*.ogg'),
+                os.path.join(base, 'Explode*.wav'),
+            ]
+            for pat in patterns:
+                try:
+                    files.extend(glob.glob(pat))
+                except Exception:
+                    pass
         # Deduplicate while preserving order
         seen = set()
         ordered = []
@@ -69,6 +84,7 @@ def init_audio():
                 seen.add(f)
                 ordered.append(f)
         _EXPLODE_SOUNDS = []
+        _EXPLODE_FILES = ordered.copy()
         for p in ordered:
             if os.path.exists(p):
                 try:
@@ -79,6 +95,66 @@ def init_audio():
         # Prepare a shuffled bag to avoid frequent repeats
         _EXPLODE_BAG = _EXPLODE_SOUNDS.copy()
         random.shuffle(_EXPLODE_BAG)
+
+        # Load all city-down sounds with common extensions
+        files_cd = []
+        for base in base_dirs:
+            patterns_cd = [
+                os.path.join(base, 'CityDown*.mp3'),
+                os.path.join(base, 'CityDown*.ogg'),
+                os.path.join(base, 'CityDown*.wav'),
+            ]
+            for pat in patterns_cd:
+                try:
+                    files_cd.extend(glob.glob(pat))
+                except Exception:
+                    pass
+        seen_cd = set()
+        ordered_cd = []
+        for f in files_cd:
+            if f not in seen_cd:
+                seen_cd.add(f)
+                ordered_cd.append(f)
+        _CITYDOWN_SOUNDS = []
+        _CITYDOWN_FILES = ordered_cd.copy()
+        for p in ordered_cd:
+            if os.path.exists(p):
+                try:
+                    _CITYDOWN_SOUNDS.append(pygame.mixer.Sound(p))
+                except Exception:
+                    pass
+        _CITYDOWN_BAG = _CITYDOWN_SOUNDS.copy()
+        random.shuffle(_CITYDOWN_BAG)
+
+        # Load all miss sounds with common extensions
+        files_miss = []
+        for base in base_dirs:
+            patterns_miss = [
+                os.path.join(base, 'Miss*.mp3'),
+                os.path.join(base, 'Miss*.ogg'),
+                os.path.join(base, 'Miss*.wav'),
+            ]
+            for pat in patterns_miss:
+                try:
+                    files_miss.extend(glob.glob(pat))
+                except Exception:
+                    pass
+        seen_miss = set()
+        ordered_miss = []
+        for f in files_miss:
+            if f not in seen_miss:
+                seen_miss.add(f)
+                ordered_miss.append(f)
+        _MISS_SOUNDS = []
+        _MISS_FILES = ordered_miss.copy()
+        for p in ordered_miss:
+            if os.path.exists(p):
+                try:
+                    _MISS_SOUNDS.append(pygame.mixer.Sound(p))
+                except Exception:
+                    pass
+        _MISS_BAG = _MISS_SOUNDS.copy()
+        random.shuffle(_MISS_BAG)
         _AUDIO_READY = True
     except Exception:
         # mixer not available; keep using system sounds
@@ -101,8 +177,76 @@ def play_random_explode():
             return
     except Exception:
         pass
-    # fallback pleasant chime
+    # Fallback: try music channel with file paths
+    try:
+        if _EXPLODE_FILES:
+            pygame.mixer.music.load(random.choice(_EXPLODE_FILES))
+            pygame.mixer.music.play()
+            return
+    except Exception:
+        pass
+    # final fallback
     sfx_intercept()
+
+def play_random_citydown():
+    # Prefer custom city-down sounds, else fallback to a distinct system sound
+    global _CITYDOWN_BAG, _LAST_CITYDOWN
+    try:
+        if _CITYDOWN_SOUNDS:
+            if not _CITYDOWN_BAG:
+                _CITYDOWN_BAG = _CITYDOWN_SOUNDS.copy()
+                random.shuffle(_CITYDOWN_BAG)
+                if _LAST_CITYDOWN is not None and len(_CITYDOWN_BAG) > 1 and _CITYDOWN_BAG[0] is _LAST_CITYDOWN:
+                    _CITYDOWN_BAG.append(_CITYDOWN_BAG.pop(0))
+            s = _CITYDOWN_BAG.pop()
+            _LAST_CITYDOWN = s
+            s.play()
+            return
+    except Exception:
+        pass
+    # Fallback: try music channel with file paths
+    try:
+        if _CITYDOWN_FILES:
+            pygame.mixer.music.load(random.choice(_CITYDOWN_FILES))
+            pygame.mixer.music.play()
+            return
+    except Exception:
+        pass
+    # final fallback: stay silent (avoid Windows ding)
+    return
+
+def play_random_miss():
+    # Prefer custom miss sounds, else fallback to annoying system sound
+    global _MISS_BAG, _LAST_MISS
+    try:
+        if _MISS_SOUNDS:
+            if not _MISS_BAG:
+                _MISS_BAG = _MISS_SOUNDS.copy()
+                random.shuffle(_MISS_BAG)
+                if _LAST_MISS is not None and len(_MISS_BAG) > 1 and _MISS_BAG[0] is _LAST_MISS:
+                    _MISS_BAG.append(_MISS_BAG.pop(0))
+            s = _MISS_BAG.pop()
+            _LAST_MISS = s
+            s.play()
+            return
+    except Exception:
+        pass
+    # Fallback: try music channel with file paths
+    try:
+        if _MISS_FILES:
+            # stop any current music playback to ensure the miss sound is heard
+            try:
+                if pygame.mixer.music.get_busy():
+                    pygame.mixer.music.stop()
+            except Exception:
+                pass
+            pygame.mixer.music.load(random.choice(_MISS_FILES))
+            pygame.mixer.music.play()
+            return
+    except Exception:
+        pass
+    # final fallback: use system exclamation so a sound is always heard
+    sfx_wrong_key()
 
 def sfx_wrong_key():
     # Annoying error sound for wrong typing key
@@ -224,6 +368,10 @@ def check_collisions(missile_list, explosion_list, city_list):
             if explosion.get_radius() > distance(explosion.get_center(), city.get_pos()):
                 city.set_destroyed(True)    # might not be needed if I just remove city from list
                 city_list.remove(city)
+                try:
+                    play_random_citydown()
+                except Exception:
+                    pass
 
     return score
 
