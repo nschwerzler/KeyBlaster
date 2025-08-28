@@ -33,7 +33,9 @@ class McGame():
     def update(self, missile_list, explosion_list, city_list):
         # generate incoming missiles
         if self.missile_frequency % self.missile_interval == 0 and self.missile_count < self.max_missile_count:
-            missile_list.append(Missile(self.get_origin(), self.get_target()))
+            # pick a key label for this missile (home row weighted)
+            label = self._choose_key_label()
+            missile_list.append(Missile(self.get_origin(), self.get_target(), True, 1, 10, WARHEAD_TRAIL, WARHEAD, label))
             self.missile_count += 1
         # increment the frequency count
         self.missile_interval += 1
@@ -101,3 +103,17 @@ class McGame():
     
     def get_player_score(self):
         return self.player_score
+
+    # choose a keyboard key label with home-row bias
+    def _choose_key_label(self):
+        top_row = list("qwertyuio")  # exclude 'p' to avoid pause hotkey clash
+        home_row = list("asdfghjkl;")
+        bottom_row = list("zxcvbnm")
+        keys = top_row + home_row + bottom_row
+        weights = ([1] * len(top_row)) + ([5] * len(home_row)) + ([2] * len(bottom_row))
+        try:
+            return random.choices(keys, weights=weights, k=1)[0]
+        except Exception:
+            # fallback if choices unavailable
+            bag = top_row + home_row * 5 + bottom_row * 2
+            return random.choice(bag)

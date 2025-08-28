@@ -23,6 +23,14 @@ screen = pygame.display.set_mode(SCREENSIZE)
 pygame.mouse.set_visible(SHOW_MOUSE)
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
+try:
+    from functions import init_audio
+    init_audio()
+except Exception:
+    pass
+
+# Typing keys allowed (matches label generation; excludes 'p' pause key)
+ALLOWED_TYPING_KEYS = set(list("qwertyuio") + list("asdfghjkl;") + list("zxcvbnm"))
 
 
 def main():
@@ -74,11 +82,51 @@ def main():
                     # right mouse button
                     pass
             if event.type == KEYDOWN:
+                # Always allow immediate exit
                 if event.key == K_ESCAPE:
                     exit_game(screen)
-                if event.key == K_SPACE:
+
+                handled = False
+                # typing-driven interception: if a labeled key is pressed, trigger an explosion
+                # use event.unicode for character; ignore non-printable keys
+                if hasattr(event, 'unicode') and event.unicode:
+                    ch = event.unicode.lower()
+                    # only react to typing keys used for labels
+                    valid_typing_key = ch in ALLOWED_TYPING_KEYS
+                    # find the best matching missile (closest to impact)
+                    target_missile = None
+                    closest_remaining = None
+                    if valid_typing_key:
+                        for m in missile_list:
+                            if getattr(m, 'label', None) and str(m.label).lower() == ch:
+                                remaining = max(0, m.dist_to_target - m.travel_dist)
+                                if closest_remaining is None or remaining < closest_remaining:
+                                    closest_remaining = remaining
+                                    target_missile = m
+                    if target_missile is not None:
+                        # spawn an intercept explosion slightly ahead of the missile to lead it
+                        lead_pos = target_missile.get_future_pos(pixels_ahead=20)
+                        explosion_list.append(Explosion(lead_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
+                        # optionally, clear label so repeated keypresses don't spam
+                        target_missile.label = None
+                        handled = True
+                        try:
+                            from functions import play_random_explode
+                            play_random_explode()
+                        except Exception:
+                            pass
+                    elif valid_typing_key:
+                        # wrong typing key (not present on screen): play annoying system sound
+                        try:
+                            from functions import sfx_wrong_key
+                            sfx_wrong_key()
+                        except Exception:
+                            pass
+
+                # legacy controls only if not handled by typing action
+                if not handled and event.key == K_SPACE:
                     defence.shoot(missile_list)
-                if event.key == K_p:
+                if not handled and event.key == K_p:
                     pause_game(screen)
             if event.type == KEYUP:
                 pass

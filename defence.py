@@ -49,6 +49,11 @@ class Defence():
             # create new missile(origin, target, false=launch up, speed, points, trail color, warhead color)
             missile_list.append(Missile(self.pos, self.target_pos, False, 8, 0, INTERCEPTER_TRAIL, INTERCEPTER))
             self.ammo -= 1
+            try:
+                from functions import sfx_shoot
+                sfx_shoot()
+            except Exception:
+                pass
     
     def get_ammo(self):
         return self.ammo

@@ -6,7 +6,7 @@ from explosion import Explosion
 
 
 class Missile():
-    def __init__(self, origin_pos, target_pos, incoming = True, speed = 1, points = 10, trail_color = WARHEAD_TRAIL, warhead_color = WARHEAD):
+    def __init__(self, origin_pos, target_pos, incoming = True, speed = 1, points = 10, trail_color = WARHEAD_TRAIL, warhead_color = WARHEAD, label=None):
         self.origin_pos = origin_pos                # starting position of missile
         self.target_pos = target_pos                # end position of missile
         if incoming == True:                        # is this missile incoming (1 = yes[default], -1 = no)
@@ -32,6 +32,7 @@ class Missile():
                                 origin_pos, 
                                 target_pos)         # full distance to target position
         self.detonated = False                      # has the missile detonated
+        self.label = label                          # optional key label for typing mode
         
     # draw the missile and trail
     def draw(self, screen):
@@ -46,6 +47,14 @@ class Missile():
                         self.warhead_color, 
                         self.pos, 
                         self.warhead_size)
+        # draw the optional key label near the warhead
+        if self.label:
+            try:
+                label_surface = game_font.render(str(self.label).upper(), False, INTERFACE_SEC)
+                screen.blit(label_surface, (self.pos[0] - (label_surface.get_width() // 2), self.pos[1] - 20))
+            except Exception:
+                # fail-safe: ignore label draw issues
+                pass
 
     # update missile logic
     def update(self, explosion_list):
@@ -64,10 +73,20 @@ class Missile():
             points_multiplier = 1
             explosion_radius = INTERCEPT_RADIUS
             explosion_color = INTERCEPT_EXPLOSION
+            try:
+                from functions import sfx_intercept
+                sfx_intercept()
+            except Exception:
+                pass
         else:
             points_multiplier = 0
             explosion_radius = NUKE_RADIUS
             explosion_color = NUKE_EXPLOSION
+            try:
+                from functions import sfx_nuke
+                sfx_nuke()
+            except Exception:
+                pass
 
         explosion_list.append(Explosion(self.pos, points_multiplier, explosion_radius, explosion_color))
 
@@ -77,3 +96,13 @@ class Missile():
 
     def get_points(self):
         return self.points
+
+    # predict a future position along trajectory, clamped to target
+    def get_future_pos(self, pixels_ahead=20):
+        future_dist = self.travel_dist + max(0, pixels_ahead)
+        if future_dist > self.dist_to_target:
+            future_dist = self.dist_to_target
+        return (
+            self.origin_pos[0] + int(future_dist * math.sin(self.angle) * self.incoming),
+            self.origin_pos[1] + int(future_dist * math.cos(self.angle) * self.incoming)
+        )

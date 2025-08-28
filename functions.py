@@ -5,6 +5,108 @@ import os
 import math
 from config import *
 import json
+import random
+import glob
+
+# System sound helpers (Windows)
+try:
+    import winsound
+    _HAS_WINSOUND = True
+except Exception:
+    winsound = None
+    _HAS_WINSOUND = False
+
+def play_system_sound(alias):
+    # Play a Windows system sound by alias (non-blocking). No-op on non-Windows.
+    if _HAS_WINSOUND and os.name == 'nt':
+        try:
+            winsound.PlaySound(alias, winsound.SND_ALIAS | winsound.SND_ASYNC)
+        except Exception:
+            pass
+
+def sfx_shoot():
+    # softer blip for firing
+    play_system_sound('SystemDefault')
+
+def sfx_intercept():
+    # pleasant chime for successful intercept
+    play_system_sound('SystemAsterisk')
+
+def sfx_nuke():
+    play_system_sound('SystemHand')
+
+# Optional: load custom explode SFX from data/sfx
+_AUDIO_READY = False
+_EXPLODE_SOUNDS = []  # list[pygame.mixer.Sound]
+_EXPLODE_BAG = []     # shuffled bag to reduce repeats
+_LAST_EXPLODE = None  # last Sound object played
+
+def init_audio():
+    global _AUDIO_READY, _EXPLODE_SOUNDS
+    if _AUDIO_READY:
+        return
+    try:
+        if not pygame.mixer.get_init():
+            pygame.mixer.init()
+        # Load all explode sounds from data/sfx with common extensions
+        base = os.path.join('data', 'sfx')
+        patterns = [
+            os.path.join(base, 'Explode*.mp3'),
+            os.path.join(base, 'Explode*.ogg'),
+            os.path.join(base, 'Explode*.wav'),
+        ]
+        files = []
+        for pat in patterns:
+            try:
+                files.extend(glob.glob(pat))
+            except Exception:
+                pass
+        # Deduplicate while preserving order
+        seen = set()
+        ordered = []
+        for f in files:
+            if f not in seen:
+                seen.add(f)
+                ordered.append(f)
+        _EXPLODE_SOUNDS = []
+        for p in ordered:
+            if os.path.exists(p):
+                try:
+                    _EXPLODE_SOUNDS.append(pygame.mixer.Sound(p))
+                except Exception:
+                    # ignore files pygame can't load
+                    pass
+        # Prepare a shuffled bag to avoid frequent repeats
+        _EXPLODE_BAG = _EXPLODE_SOUNDS.copy()
+        random.shuffle(_EXPLODE_BAG)
+        _AUDIO_READY = True
+    except Exception:
+        # mixer not available; keep using system sounds
+        _AUDIO_READY = False
+
+def play_random_explode():
+    # Prefer custom sounds if loaded, else fallback to system alias
+    global _EXPLODE_BAG, _LAST_EXPLODE
+    try:
+        if _EXPLODE_SOUNDS:
+            if not _EXPLODE_BAG:
+                _EXPLODE_BAG = _EXPLODE_SOUNDS.copy()
+                random.shuffle(_EXPLODE_BAG)
+                # avoid immediate repeat if possible
+                if _LAST_EXPLODE is not None and len(_EXPLODE_BAG) > 1 and _EXPLODE_BAG[0] is _LAST_EXPLODE:
+                    _EXPLODE_BAG.append(_EXPLODE_BAG.pop(0))
+            s = _EXPLODE_BAG.pop()
+            _LAST_EXPLODE = s
+            s.play()
+            return
+    except Exception:
+        pass
+    # fallback pleasant chime
+    sfx_intercept()
+
+def sfx_wrong_key():
+    # Annoying error sound for wrong typing key
+    play_system_sound('SystemExclamation')
 
 
 
