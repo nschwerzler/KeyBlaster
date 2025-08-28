@@ -445,8 +445,9 @@ def show_high_scores(screen, high_scores):
         # Format position with leading space for single digits
         pos_str = f"{pos:>2}"  # Right-align position in 2 characters
         
-        # Format name with consistent width
-        name_str = f"{record['name']:<8}"  # Left-align name in 8 characters
+        # Format name with consistent width (strip extra spaces first)
+        clean_name = str(record['name']).strip()
+        name_str = f"{clean_name:<12}"  # Left-align name in 12 characters
         
         # Format score with consistent width and right-align
         score_str = f"{record['score']:>8,}"  # Right-align score in 8 chars with commas

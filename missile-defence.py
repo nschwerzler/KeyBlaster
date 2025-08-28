@@ -157,9 +157,9 @@ def main():
                         except Exception:
                             pass
 
-                # legacy controls only if not handled by typing action
-                if not handled and event.key == K_SPACE:
-                    defence.shoot(missile_list)
+                # Spacebar firing disabled - typing only game
+                # if not handled and event.key == K_SPACE:
+                #     defence.shoot(missile_list)
                 # 'p' no longer pauses; only ESC toggles pause
             if event.type == KEYUP:
                 pass

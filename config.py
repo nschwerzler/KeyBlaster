@@ -14,7 +14,7 @@ pygame.display.set_mode((infoObject.current_w, infoObject.current_h))
 '''
 FPS                     = 30
 TITLE                   = "KeyBlaster"
-SHOW_MOUSE              = True
+SHOW_MOUSE              = False  # Typing game - no mouse needed
 current_game_state      = 0
 GAME_STATE_SPLASH       = 10
 GAME_STATE_MENU         = 20
