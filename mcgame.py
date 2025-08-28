@@ -35,7 +35,9 @@ class McGame():
         if self.missile_frequency % self.missile_interval == 0 and self.missile_count < self.max_missile_count:
             # pick a key label for this missile (home row weighted)
             label = self._choose_key_label()
-            missile_list.append(Missile(self.get_origin(), self.get_target(), True, 1, 10, WARHEAD_TRAIL, WARHEAD, label))
+            # Calculate missile speed based on difficulty level
+            missile_speed = self._calculate_missile_speed()
+            missile_list.append(Missile(self.get_origin(), self.get_target(), True, missile_speed, 10, WARHEAD_TRAIL, WARHEAD, label))
             self.missile_count += 1
         # increment the frequency count
         self.missile_interval += 1
@@ -104,16 +106,57 @@ class McGame():
     def get_player_score(self):
         return self.player_score
 
-    # choose a keyboard key label with home-row bias
+    # choose a keyboard key label with home-row bias, or words for higher levels
     def _choose_key_label(self):
-        top_row = list("qwertyuiop")
-        home_row = list("asdfghjkl;")
-        bottom_row = list("zxcvbnm")
-        keys = top_row + home_row + bottom_row
-        weights = ([1] * len(top_row)) + ([5] * len(home_row)) + ([2] * len(bottom_row))
-        try:
-            return random.choices(keys, weights=weights, k=1)[0]
-        except Exception:
-            # fallback if choices unavailable
-            bag = top_row + home_row * 5 + bottom_row * 2
-            return random.choice(bag)
+        if self.difficulty < 3:
+            # Single characters for levels 1-2
+            top_row = list("qwertyuiop")
+            home_row = list("asdfghjkl;")
+            bottom_row = list("zxcvbnm")
+            keys = top_row + home_row + bottom_row
+            weights = ([1] * len(top_row)) + ([5] * len(home_row)) + ([2] * len(bottom_row))
+            try:
+                return random.choices(keys, weights=weights, k=1)[0]
+            except Exception:
+                # fallback if choices unavailable
+                bag = top_row + home_row * 5 + bottom_row * 2
+                return random.choice(bag)
+        else:
+            # Multi-character words for level 3+
+            return self._choose_word()
+    
+    def _choose_word(self):
+        # Word lists based on difficulty level
+        three_letter_words = ["cat", "dog", "run", "car", "sun", "red", "big", "hot", "old", "new"]
+        four_letter_words = ["fire", "help", "jump", "fast", "slow", "cold", "blue", "dark", "long", "safe"]
+        five_letter_words = ["power", "laser", "blast", "storm", "quick", "magic", "space", "fight", "brave", "peace"]
+        six_letter_words = ["defend", "shield", "attack", "weapon", "strong", "danger", "flight", "battle", "energy", "launch"]
+        long_words = ["missile", "defense", "protect", "freedom", "victory", "command", "destroy", "counter", "nuclear", "warfare"]
+        
+        if self.difficulty <= 5:
+            return random.choice(three_letter_words)
+        elif self.difficulty <= 8:
+            return random.choice(three_letter_words + four_letter_words)
+        elif self.difficulty <= 12:
+            return random.choice(four_letter_words + five_letter_words)
+        elif self.difficulty <= 16:
+            return random.choice(five_letter_words + six_letter_words)
+        else:
+            return random.choice(six_letter_words + long_words)
+    
+    def _calculate_missile_speed(self):
+        # Progressive speed scaling: slow start, medium at level 10, very fast at level 20+
+        if self.difficulty == 1:
+            return 0.5  # Very slow for level 1
+        elif self.difficulty <= 3:
+            return 0.7  # Still slow for early levels
+        elif self.difficulty <= 6:
+            return 1.0  # Normal speed
+        elif self.difficulty <= 10:
+            return 1.3  # Medium difficulty at level 10
+        elif self.difficulty <= 15:
+            return 1.7  # Getting harder
+        elif self.difficulty <= 20:
+            return 2.2  # Very hard at level 20
+        else:
+            return 2.5 + (self.difficulty - 20) * 0.2  # Mega hard beyond level 20

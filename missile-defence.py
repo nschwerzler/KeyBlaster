@@ -38,9 +38,12 @@ except Exception:
 ALLOWED_TYPING_KEYS = set(list("qwertyuiop") + list("asdfghjkl;") + list("zxcvbnm"))  # labels include 'p'
 RESERVED_TYPING_KEYS = set()  # no reserved typing keys; only ESC pauses
 
+# Global variable to track which missile is currently being typed
+current_typing_target = None
+
 
 def main():
-    global current_game_state
+    global current_game_state, current_typing_target
 
     # load high-score file
     high_scores = load_scores("scores.json")
@@ -89,30 +92,65 @@ def main():
                     ch = event.unicode.lower()
                     # react to printable single characters that aren't reserved hotkeys
                     printable_key = len(ch) == 1 and ch.isprintable() and ch not in RESERVED_TYPING_KEYS
-                    # find the best matching missile (closest to impact)
                     target_missile = None
-                    closest_remaining = None
+                    
                     if printable_key:
-                        for m in missile_list:
-                            if getattr(m, 'label', None) and str(m.label).lower() == ch:
-                                remaining = max(0, m.dist_to_target - m.travel_dist)
-                                if closest_remaining is None or remaining < closest_remaining:
-                                    closest_remaining = remaining
-                                    target_missile = m
+                        # Check if we have a current typing target that's still valid
+                        if current_typing_target is not None and current_typing_target in missile_list:
+                            if getattr(current_typing_target, 'label', None):
+                                label_str = str(current_typing_target.label).lower()
+                                typed_str = getattr(current_typing_target, 'typed_chars', '').lower()
+                                
+                                # Check if this character continues the current target
+                                next_expected_char = label_str[len(typed_str)] if len(typed_str) < len(label_str) else None
+                                
+                                if next_expected_char == ch:
+                                    target_missile = current_typing_target
+                                # If we have a current target but wrong character, don't look for new targets
+                                # This prevents switching words mid-typing
+                        
+                        # Only find a new target if we don't have a current one
+                        elif target_missile is None:
+                            closest_remaining = None
+                            # Find missiles that can start with this character (only fresh missiles)
+                            for m in missile_list:
+                                if getattr(m, 'label', None) and getattr(m, 'typed_chars', '') == '':
+                                    label_str = str(m.label).lower()
+                                    
+                                    # Check if this character starts this missile's word
+                                    if label_str.startswith(ch):
+                                        remaining = max(0, m.dist_to_target - m.travel_dist)
+                                        if closest_remaining is None or remaining < closest_remaining:
+                                            closest_remaining = remaining
+                                            target_missile = m
+                    
                     if target_missile is not None:
-                        # spawn an intercept explosion slightly ahead of the missile to lead it
-                        lead_pos = target_missile.get_future_pos(pixels_ahead=20)
-                        explosion_list.append(Explosion(lead_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
-                        # optionally, clear label so repeated keypresses don't spam
-                        target_missile.label = None
+                        # Set this as our current typing target
+                        current_typing_target = target_missile
+                        
+                        # Add the typed character to the missile's progress
+                        target_missile.typed_chars += ch
+                        
+                        # Check if the word is complete
+                        if target_missile.typed_chars.lower() == str(target_missile.label).lower():
+                            # Word complete - destroy missile and clear target
+                            lead_pos = target_missile.get_future_pos(pixels_ahead=20)
+                            explosion_list.append(Explosion(lead_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
+                            target_missile.label = None
+                            current_typing_target = None
+                            try:
+                                from functions import play_random_explode
+                                play_random_explode()
+                            except Exception:
+                                pass
                         handled = True
-                        try:
-                            from functions import play_random_explode
-                            play_random_explode()
-                        except Exception:
-                            pass
                     elif printable_key:
-                        # wrong typing key (not present on screen): play miss sound
+                        # wrong typing key: if we had a current target, clear it and reset that missile
+                        if current_typing_target is not None and current_typing_target in missile_list:
+                            current_typing_target.typed_chars = ""  # Reset the missile's progress
+                            current_typing_target = None  # Clear the target
+                        
+                        # Play miss sound
                         try:
                             from functions import play_random_miss
                             play_random_miss()
@@ -144,6 +182,9 @@ def main():
             missile.update(explosion_list)
             missile.draw(screen)
             if missile.detonated:
+                # Clear typing target if this missile was being typed
+                if missile == current_typing_target:
+                    current_typing_target = None
                 missile_list.remove(missile)
         
         # --- explosions
@@ -166,6 +207,8 @@ def main():
 
         # load a message and set new game values for start new level
         if current_game_state == GAME_STATE_NEW_LEVEL:
+            # Clear typing target when starting new level
+            current_typing_target = None
             mcgame.new_level(screen, defence)
         
         # Update the display

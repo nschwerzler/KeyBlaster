@@ -5,7 +5,7 @@ import pygame
 
 # Global configuration options
 # SCREENSIZE              = [800, 440]#[960, 540]
-SCREENSIZE              = [960, 540] 
+SCREENSIZE              = [1280, 720] 
 # TBC - method of getting current display dimensions below
 
 '''

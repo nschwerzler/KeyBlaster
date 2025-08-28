@@ -442,14 +442,19 @@ def show_high_scores(screen, high_scores):
 
     # loop through dict 'high_scores'
     for pos, record in high_scores.items():
-        if len(pos) == 1:
-            pos = " " + pos
-        record["score"] = str(record["score"])
-        if wide_score <= len(record["score"]):
-            wide_score = len(record["score"])
-        else:
-            record["score"] = (" " * (wide_score - len(record["score"]))) + record["score"]
-        score_text = game_font.render(pos + " " + record["name"] + " " + record["score"], False, INTERFACE_SEC)
+        # Format position with leading space for single digits
+        pos_str = f"{pos:>2}"  # Right-align position in 2 characters
+        
+        # Format name with consistent width
+        name_str = f"{record['name']:<8}"  # Left-align name in 8 characters
+        
+        # Format score with consistent width and right-align
+        score_str = f"{record['score']:>8,}"  # Right-align score in 8 chars with commas
+        
+        # Create the full line with proper spacing
+        full_line = f"{pos_str}. {name_str} {score_str}"
+        
+        score_text = game_font.render(full_line, False, INTERFACE_SEC)
         score_text_pos = (SCREENSIZE[0] // 2 - (score_text.get_width() // 2),
                             SCREENSIZE[1] // 2 - (text_height * text_y_pos_multiplier))
         screen.blit(score_text, score_text_pos)

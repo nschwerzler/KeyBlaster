@@ -33,6 +33,7 @@ class Missile():
                                 target_pos)         # full distance to target position
         self.detonated = False                      # has the missile detonated
         self.label = label                          # optional key label for typing mode
+        self.typed_chars = ""                       # characters typed so far for multi-char words
         
     # draw the missile and trail
     def draw(self, screen):
@@ -50,8 +51,25 @@ class Missile():
         # draw the optional key label near the warhead
         if self.label:
             try:
-                label_surface = game_font.render(str(self.label).upper(), False, INTERFACE_SEC)
-                screen.blit(label_surface, (self.pos[0] - (label_surface.get_width() // 2), self.pos[1] - 20))
+                # Show label with typed characters highlighted
+                full_label = str(self.label).upper()
+                typed_portion = self.typed_chars.upper()
+                
+                if len(typed_portion) > 0 and full_label.startswith(typed_portion):
+                    # Show typed chars in different color, remaining chars in normal color
+                    typed_surface = game_font.render(typed_portion, False, (0, 255, 0))  # Green for typed
+                    remaining = full_label[len(typed_portion):]
+                    remaining_surface = game_font.render(remaining, False, INTERFACE_SEC)  # Normal color for remaining
+                    
+                    # Position both parts
+                    total_width = typed_surface.get_width() + remaining_surface.get_width()
+                    start_x = self.pos[0] - (total_width // 2)
+                    screen.blit(typed_surface, (start_x, self.pos[1] - 20))
+                    screen.blit(remaining_surface, (start_x + typed_surface.get_width(), self.pos[1] - 20))
+                else:
+                    # Show normal label
+                    label_surface = game_font.render(full_label, False, INTERFACE_SEC)
+                    screen.blit(label_surface, (self.pos[0] - (label_surface.get_width() // 2), self.pos[1] - 20))
             except Exception:
                 # fail-safe: ignore label draw issues
                 pass

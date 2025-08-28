@@ -1,71 +1,167 @@
-# Missile Command
+# KeyBlaster - Typing Defense Game
 
 ## Description
 
-Missile command was the first game I've ever played in my life.
-This was in 1989 on Atari 800XL home computer my father bought the same year.
+KeyBlaster is a typing tutor game inspired by the classic Missile Command arcade game. Instead of using a mouse to aim and shoot missiles, players must type characters and words to destroy incoming threats before they reach your cities. This combines the excitement of arcade action with practical typing skill development.
 
-Atari 当たり [hiragana: アタリ] in Japanese means: 
-"Hit" , "strike" or "to be right".
-
-The game was on a cartridge (i'm sure today's kids don't know what is that!), I put it in the slot, and boom the game is on the TV ready to be played.
-This is an attempt to recreate the game after 32 years using Python programming language.
-This was not easy to recreate and I had to look up a lot of the logic on internet.
-
+Originally forked from a traditional missile defense game, KeyBlaster has evolved into an educational typing game that progressively challenges players with increasingly complex words and faster-paced action.
 
 ## Story
 
 You are the local Missile Commander for the Missile Intercept Launch Function. 
 
-You are responsible for the safety of millions of citizens in six nearby cities.  Nuclear war has just broken out.  Wave after wave of nuclear warheads have been detected re-entering the atmostphere in your zone of control.
+You are responsible for the safety of millions of citizens in six nearby cities. Nuclear war has just broken out. Wave after wave of nuclear warheads have been detected re-entering the atmosphere in your zone of control.
 
-All that stands between the last remaining citizens of your country and a fireball of death are your lightning reflexes and sharp-shooting aim.  
+All that stands between the last remaining citizens of your country and a fireball of death are your lightning-fast typing skills and accurate keystrokes.
 
-Get ready!
+Get ready to type for your life!
 
+## Game Features
 
-##System
-This is written on Microsoft Windows machine.
+- **Progressive Difficulty**: Start with single characters and advance to complex words
+- **Typing Skills Development**: Improve speed and accuracy through gameplay
+- **Visual Feedback**: See your typing progress with character highlighting
+- **Sound Effects**: Audio feedback for hits, misses, and explosions
+- **Score System**: Track your performance and compete for high scores
+- **Multiple Levels**: Each level increases speed and word complexity
 
 ## How to Play
-You try to shoot the fireballs aiming your cities to defend your citizens.
 
-To get the source code, you need to have Git and Python3 installed on your system.
+### Gameplay Mechanics
 
-Clone / download files from Github repository
+1. **Early Levels (1-2)**: Type single characters (a, s, d, f, etc.) to destroy missiles
+2. **Level 3+**: Type complete words to destroy missiles:
+   - **Levels 3-5**: 3-letter words (cat, dog, run)
+   - **Levels 6-8**: 3-4 letter words (fire, help, jump)
+   - **Levels 9-12**: 4-5 letter words (power, laser, blast)
+   - **Levels 13-16**: 5-6 letter words (defend, shield, attack)
+   - **Level 17+**: Complex words (missile, defense, warfare)
 
-Create a local virtual environment
+3. **Progressive Typing**: For multi-character words, type each letter in sequence
+   - Correctly typed characters appear in green
+   - Remaining characters show in white
+   - Complete the word to destroy the missile
 
-`pip install pipenv`  if you don't have pipenv
+4. **Speed Scaling**: Missile speed increases with each level
+   - Level 1: Very slow (0.5x speed) - easy start
+   - Level 10: Medium difficulty (1.3x speed)
+   - Level 20: Very hard (2.2x speed)
+   - Level 20+: Mega hard (escalating difficulty)
 
-Activate the environment
+### Controls
 
-`pipenv shell`
+- **Typing**: Type the characters/words shown on missiles to destroy them
+- **ESC**: Pause game
+- **Space**: Legacy firing mode (available as backup)
 
-Install the dependencies
+### Objective
 
-`pipenv install -r requirements.txt`
+Protect your cities by typing the correct characters or words before missiles impact. The game ends when all cities are destroyed. Try to achieve the highest score possible!
 
-Run the game!!
+## Installation and Running
 
-`python missile-defence.py`
+### Automatic Setup (Recommended)
 
-## Game Controls
+The easiest way to run KeyBlaster is using the included launcher:
 
-Use the mouse to select where you want to target.
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd KeyBlaster
+   ```
 
-Press primary mouse button to fire.
+2. **Run the game**:
+   ```bash
+   StartGame.cmd
+   ```
 
-## Original Game
-Missile Command is a 1980 arcade game developed and published by Atari, Inc. and licensed to Sega for European release. It was designed by Dave Theurer, who also designed Atari's vector graphics game Tempest from the same year.
-All The 1981 Atari 2600 port of Missile Command by Rob Fulop sold over 2.5 million copies and became the third most popular cartridge for the system.
+The `StartGame.cmd` script will automatically:
+- Detect or install Python 3
+- Create a virtual environment
+- Install all dependencies (pygame, etc.)
+- Launch the game
 
-[Wikipedia article](https://en.wikipedia.org/wiki/Missile_Command)
+### Manual Setup
 
-[Flash port of the original game](http://www.arcadedivision.com/classicgame12/shooting/missile-command.html)
+If you prefer manual installation:
 
-## Work in Progress
+1. **Prerequisites**: 
+   - Python 3.7 or higher
+   - pip (Python package installer)
 
-- working on sound system
-- adding easter eggs from other Atari games
-- possible appearnce of UFOs
+2. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd KeyBlaster
+   ```
+
+3. **Create virtual environment**:
+   ```bash
+   python -m venv .venv
+   ```
+
+4. **Activate virtual environment**:
+   - Windows: `.venv\Scripts\activate`
+   - macOS/Linux: `source .venv/bin/activate`
+
+5. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+6. **Run the game**:
+   ```bash
+   python missile-defence.py
+   ```
+
+### Alternative Installation (Pipenv)
+
+If you prefer using pipenv:
+
+```bash
+pip install pipenv
+pipenv shell
+pipenv install -r requirements.txt
+python missile-defence.py
+```
+
+## System Requirements
+
+- **Operating System**: Windows, macOS, or Linux
+- **Python**: Version 3.7 or higher
+- **Dependencies**: pygame (automatically installed)
+- **Display**: Any resolution (game window: 1280x720)
+
+## Game Tips
+
+1. **Focus on home row keys**: The game weights home row characters more heavily in early levels
+2. **Type accurately**: Wrong keypresses play miss sounds and don't help
+3. **Plan ahead**: Start typing words as soon as missiles appear
+4. **Practice regularly**: The game helps improve both typing speed and accuracy
+5. **Stay calm**: Higher levels require steady, accurate typing under pressure
+
+## Development History
+
+This game started as a recreation of the classic 1980 Atari Missile Command game and evolved into a typing tutor. The transformation from mouse-based targeting to keyboard-based gameplay makes it both educational and entertaining.
+
+## Original Inspiration
+
+Missile Command is a 1980 arcade game developed and published by Atari, Inc. It was designed by Dave Theurer, who also designed Atari's vector graphics game Tempest from the same year. The 1981 Atari 2600 port sold over 2.5 million copies and became the third most popular cartridge for the system.
+
+- [Wikipedia article](https://en.wikipedia.org/wiki/Missile_Command)
+
+## Technical Details
+
+- **Language**: Python 3
+- **Graphics**: pygame library
+- **Architecture**: Object-oriented design with separate classes for missiles, explosions, cities, and game logic
+- **Sound**: MP3 audio files for various game events
+- **Fonts**: Retro-style pixel font (PressStart2P)
+
+## Contributing
+
+Feel free to contribute improvements, bug fixes, or new features. The codebase is well-structured with separate modules for different game components.
+
+## License
+
+This project is inspired by the classic Missile Command game and is intended for educational purposes.
