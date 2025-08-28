@@ -13,7 +13,7 @@ infoObject = pygame.display.Info()
 pygame.display.set_mode((infoObject.current_w, infoObject.current_h))
 '''
 FPS                     = 30
-TITLE                   = "Atari Missile Command"
+TITLE                   = "KeyBlaster"
 SHOW_MOUSE              = True
 current_game_state      = 0
 GAME_STATE_SPLASH       = 10

@@ -1,4 +1,5 @@
 import pygame
+import sys
 from pygame.locals import *
 import os
 import math
@@ -60,9 +61,13 @@ def exit_game(screen):
     # wait for player to confirm exit or not
     while pause == 0:
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit(0)
             if event.type == KEYDOWN:
                 if event.key == K_y:
-                    exit()
+                    pygame.quit()
+                    sys.exit(0)
                 if event.key == K_n:
                     pause = -1
 
@@ -90,6 +95,9 @@ def pause_game(screen):
     # wait for player to un-pause
     while pause == 0:
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit(0)
             if event.type == KEYDOWN:
                 if event.key == K_p:
                     pause = -1
@@ -210,6 +218,9 @@ def show_high_scores(screen, high_scores):
     # infinite loop to listen / wait for continue
     while pause == 0:
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit(0)
             if event.type == KEYDOWN:
                 if event.key == K_SPACE:
                     pause = -1

@@ -1,4 +1,5 @@
 import pygame
+import sys
 #from pygame.locals import *
 #import os
 import random
@@ -59,6 +60,9 @@ def main():
     while True:
         # write event handlers here
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit(0)
             if event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:
                     # primary mouse button
@@ -134,6 +138,9 @@ def main():
             input_box = InputBox(100, 100, 140, 32)
             while input_box.check_finished() == False:
                 for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit(0)
                     input_box.handle_event(event)
                 input_box.update()
                 input_box.draw(screen)
