@@ -500,6 +500,31 @@ def show_high_scores(screen, high_scores):
 
     pause = 0
 
+    # Add motivational text near the top
+    motivational_y = 50  # Position near top of screen
+    
+    # Render individual words with different colors
+    i_text = game_font.render('I', False, INTERFACE_SEC)
+    will_text = game_font.render('will', False, INTERFACE_SEC)
+    be_text = game_font.render('be', False, INTERFACE_SEC)
+    strong_text = game_font.render('STRONG', False, (255, 140, 0))  # Orange
+    and_text = game_font.render('and', False, INTERFACE_SEC)
+    face_text = game_font.render('face', False, INTERFACE_SEC)
+    challenges_text = game_font.render('CHALLENGES', False, (255, 140, 0))  # Orange
+    
+    # Calculate total width for centering
+    words = [i_text, will_text, be_text, strong_text, and_text, face_text, challenges_text]
+    total_width = sum(word.get_width() for word in words) + (len(words) - 1) * 10  # 10px space between words
+    
+    # Start position for centered text
+    start_x = (SCREENSIZE[0] - total_width) // 2
+    current_x = start_x
+    
+    # Blit each word with proper spacing
+    for word in words:
+        screen.blit(word, (current_x, motivational_y))
+        current_x += word.get_width() + 10  # Add word width plus 10px space
+
     # generate heading msg, position, blit
     high_score_heading = game_font.render('HIGH SCORES', False, INTERFACE_PRI)
     text_height = high_score_heading.get_height()
