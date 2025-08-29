@@ -82,7 +82,7 @@ def remove_word_prefix(word):
 
 
 def main():
-    global current_game_state, typed_sequence, active_word_prefixes, pending_destruction, destruction_timer, destruction_queue, turbo_timer
+    global current_game_state, typed_sequence, active_word_prefixes, pending_destruction, destruction_timer, destruction_queue, turbo_timer, last_completed_level
 
     # Start replay recording
     recorder = start_recording()
@@ -132,6 +132,9 @@ def main():
     # Auto-save timer for replays
     last_auto_save = time.time()
     auto_save_interval = 30  # Auto-save every 30 seconds
+    
+    # Track level completion to prevent duplicate saves
+    last_completed_level = 0
 
     while True:
         # write event handlers here
@@ -468,26 +471,30 @@ def main():
 
         # load a message and set new game values for start new level
         if current_game_state == GAME_STATE_NEW_LEVEL:
-            # Record level completion and save replay
+            # Record level completion and save replay (only once per level)
             if recorder:
                 current_level = getattr(mcgame, 'difficulty', 1) if 'mcgame' in locals() else 1
                 current_score = getattr(mcgame, 'player_score', 0) if 'mcgame' in locals() else 0
                 
-                # Record level completion with detailed stats
-                recorder.record_event("level_completed", {
-                    "level": current_level,
-                    "score": current_score,
-                    "remaining_cities": len([city for city in city_list if not getattr(city, 'destroyed', False)]),
-                    "powerups_on_screen": len(powerup_list),
-                    "missiles_on_screen": len(missile_list)
-                })
-                
-                # Save replay after each level completion
-                filename = recorder.save()
-                print(f"Level {current_level} completed - Replay saved: {os.path.basename(filename) if filename else 'Failed'}")
-                
-                # Record the start of new level (difficulty will increment after new_level call)
-                recorder.record_level_change(current_level + 1)
+                # Only record and save if this is a new level completion
+                if current_level > last_completed_level:
+                    last_completed_level = current_level
+                    
+                    # Record level completion with detailed stats
+                    recorder.record_event("level_completed", {
+                        "level": current_level,
+                        "score": current_score,
+                        "remaining_cities": len([city for city in city_list if not getattr(city, 'destroyed', False)]),
+                        "powerups_on_screen": len(powerup_list),
+                        "missiles_on_screen": len(missile_list)
+                    })
+                    
+                    # Save replay after each level completion
+                    filename = recorder.save()
+                    print(f"Level {current_level} completed - Replay saved: {os.path.basename(filename) if filename else 'Failed'}")
+                    
+                    # Record the start of new level (difficulty will increment after new_level call)
+                    recorder.record_level_change(current_level + 1)
             
             # Reset typing state and turbo mode when starting new level
             typed_sequence = ""
@@ -567,6 +574,8 @@ def main():
             pending_destruction = None
             destruction_timer = 0
             destruction_queue.clear()
+            # Reset level completion tracking
+            last_completed_level = 0
             # Recreate cities (match original positioning)
             city_list = []
             for i in range(1, 8):   # 8 == Max num cities plus defense plus one
