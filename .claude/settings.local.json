@@ -5,7 +5,11 @@
       "Bash(StartGame.cmd)",
       "Bash(cmd:*)",
       "Bash(python:*)",
-      "Bash(where python)"
+      "Bash(where python)",
+      "Read(C:\\Users\\nschw\\AppData\\Roaming\\KeyBlaster\\Replays/**)",
+      "Read(C:\\Users\\nschw\\AppData\\Roaming\\KeyBlaster\\Replays/**)",
+      "Read(C:\\Users\\nschw\\AppData\\Roaming\\KeyBlaster\\Replays/**)",
+      "Read(C:\\Users\\nschw\\AppData\\Roaming\\KeyBlaster\\Replays/**)"
     ],
     "deny": [],
     "ask": []

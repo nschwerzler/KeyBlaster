@@ -497,13 +497,20 @@ def main():
                     recorder.record_level_change(current_level + 1)
             
             # Reset typing state and turbo mode when starting new level
-            typed_sequence = ""
+            typed_sequence = ""  # Clear any partial typing
             turbo_mode = False
             turbo_timer = 0
-            # Re-track all existing powerup word prefixes for the new level
+            
+            # Clear any pending/queued destructions that might be hanging around
+            pending_destruction = None
+            destruction_timer = 0
+            destruction_queue.clear()
+            # Clean up and re-track all existing powerup word prefixes for the new level
             for powerup in powerup_list:
                 if hasattr(powerup, 'label') and powerup.label:
-                    # Remove old prefix tracking flag and re-add to system
+                    # First remove from active prefix tracking completely
+                    remove_word_prefix(powerup.label)
+                    # Remove old prefix tracking flag so it gets re-added to system
                     if hasattr(powerup, '_prefix_tracked'):
                         delattr(powerup, '_prefix_tracked')
             mcgame.new_level(screen, defense)
