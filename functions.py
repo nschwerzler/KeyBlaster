@@ -49,6 +49,10 @@ _MISS_SOUNDS = []      # list[pygame.mixer.Sound]
 _MISS_BAG = []         # shuffled bag to reduce repeats
 _LAST_MISS = None      # last Sound object played
 _MISS_FILES = []       # file path fallbacks
+_POWERUP_SOUNDS = []   # list[pygame.mixer.Sound]
+_POWERUP_BAG = []      # shuffled bag to reduce repeats
+_LAST_POWERUP = None   # last Sound object played
+_POWERUP_FILES = []    # file path fallbacks
 
 def init_audio():
     global _AUDIO_READY
@@ -56,6 +60,7 @@ def init_audio():
     global _EXPLODE_SOUNDS, _EXPLODE_BAG, _LAST_EXPLODE, _EXPLODE_FILES
     global _CITYDOWN_SOUNDS, _CITYDOWN_BAG, _LAST_CITYDOWN, _CITYDOWN_FILES
     global _MISS_SOUNDS, _MISS_BAG, _LAST_MISS, _MISS_FILES
+    global _POWERUP_SOUNDS, _POWERUP_BAG, _LAST_POWERUP, _POWERUP_FILES
     if _AUDIO_READY:
         return
     try:
@@ -155,6 +160,38 @@ def init_audio():
                     pass
         _MISS_BAG = _MISS_SOUNDS.copy()
         random.shuffle(_MISS_BAG)
+
+        # Load all powerup sounds with common extensions
+        files_powerup = []
+        for base in base_dirs:
+            patterns_powerup = [
+                os.path.join(base, 'powerup*.mp3'),
+                os.path.join(base, 'Powerup*.mp3'),
+                os.path.join(base, 'PowerUp*.mp3'),
+                os.path.join(base, 'powerup*.ogg'),
+                os.path.join(base, 'powerup*.wav'),
+            ]
+            for pat in patterns_powerup:
+                try:
+                    files_powerup.extend(glob.glob(pat))
+                except Exception:
+                    pass
+        seen_powerup = set()
+        ordered_powerup = []
+        for f in files_powerup:
+            if f not in seen_powerup:
+                seen_powerup.add(f)
+                ordered_powerup.append(f)
+        _POWERUP_SOUNDS = []
+        _POWERUP_FILES = ordered_powerup.copy()
+        for p in ordered_powerup:
+            if os.path.exists(p):
+                try:
+                    _POWERUP_SOUNDS.append(pygame.mixer.Sound(p))
+                except Exception:
+                    pass
+        _POWERUP_BAG = _POWERUP_SOUNDS.copy()
+        random.shuffle(_POWERUP_BAG)
         _AUDIO_READY = True
     except Exception:
         # mixer not available; keep using system sounds
@@ -247,6 +284,39 @@ def play_random_miss():
         pass
     # final fallback: use system exclamation so a sound is always heard
     sfx_wrong_key()
+
+def play_random_powerup():
+    # Play random powerup sound effect
+    global _POWERUP_BAG, _LAST_POWERUP
+    try:
+        if _POWERUP_SOUNDS:
+            if not _POWERUP_BAG:
+                _POWERUP_BAG = _POWERUP_SOUNDS.copy()
+                random.shuffle(_POWERUP_BAG)
+                # avoid immediate repeat if possible
+                if _LAST_POWERUP is not None and len(_POWERUP_BAG) > 1 and _POWERUP_BAG[0] is _LAST_POWERUP:
+                    _POWERUP_BAG.append(_POWERUP_BAG.pop(0))
+            s = _POWERUP_BAG.pop()
+            _LAST_POWERUP = s
+            s.play()
+            return
+    except Exception:
+        pass
+    # Fallback: try music channel with file paths
+    try:
+        if _POWERUP_FILES:
+            pygame.mixer.music.load(random.choice(_POWERUP_FILES))
+            pygame.mixer.music.play()
+            return
+    except Exception:
+        pass
+    # Final fallback - use a different sound if no powerup sounds found
+    try:
+        # Use a higher pitched version of explode sound as fallback
+        if _EXPLODE_SOUNDS:
+            random.choice(_EXPLODE_SOUNDS).play()
+    except Exception:
+        pass
 
 def sfx_wrong_key():
     # Annoying error sound for wrong typing key

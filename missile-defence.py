@@ -11,8 +11,9 @@ from functions import *
 from city import City
 from missile import Missile
 from explosion import Explosion
-from defence import Defence
+from defense import Defense
 from mcgame import McGame
+from powerup import Powerup
 from text import InputBox
 
 
@@ -55,16 +56,17 @@ def main():
     explosion_list = []
     # list of all active missiles
     missile_list = []
+    powerup_list = []
     # TBC - generate the cities
     # need to be replaced with working cities
     city_list = []
-    for i in range(1, 8):   # 8 == Max num cities plus defence plus one
+    for i in range(1, 8):   # 8 == Max num cities plus defense plus one
         if i == 8 // 2:     # find centre point for gun
             pass
         else:
             city_list.append(City(i, 7))   # 7 == max num cities plus guns
     # Intercepter gun
-    defence = Defence()
+    defense = Defense()
 
     # set the game running
     current_game_state = GAME_STATE_RUNNING
@@ -73,6 +75,9 @@ def main():
 
     # setup the MCGAME AI
     mcgame = McGame(1, high_scores["1"]["score"])
+    
+    # Track turbo mode for testing
+    turbo_mode = False
 
     while True:
         # write event handlers here
@@ -82,7 +87,9 @@ def main():
                 sys.exit(0)
             if event.type == KEYDOWN:
                 # ESC pauses the game (no exit prompt)
-                if event.key == K_ESCAPE:
+                if event.key == K_SPACE:
+                    turbo_mode = True  # Enable turbo mode when space pressed
+                elif event.key == K_ESCAPE:
                     pause_game(screen)
 
                 handled = False
@@ -93,11 +100,13 @@ def main():
                     # react to printable single characters that aren't reserved hotkeys
                     printable_key = len(ch) == 1 and ch.isprintable() and ch not in RESERVED_TYPING_KEYS
                     target_missile = None
+                    target_powerup = None
                     
                     if printable_key:
                         # Check if we have a current typing target that's still valid
-                        if current_typing_target is not None and current_typing_target in missile_list:
-                            if getattr(current_typing_target, 'label', None):
+                        if current_typing_target is not None:
+                            # Check if current target is a missile
+                            if current_typing_target in missile_list and getattr(current_typing_target, 'label', None):
                                 label_str = str(current_typing_target.label).lower()
                                 typed_str = getattr(current_typing_target, 'typed_chars', '').lower()
                                 
@@ -106,24 +115,53 @@ def main():
                                 
                                 if next_expected_char == ch:
                                     target_missile = current_typing_target
-                                # If we have a current target but wrong character, don't look for new targets
-                                # This prevents switching words mid-typing
+                            # Check if current target is a powerup
+                            elif current_typing_target in powerup_list and getattr(current_typing_target, 'label', None):
+                                label_str = str(current_typing_target.label).lower()
+                                typed_str = getattr(current_typing_target, 'typed_chars', '').lower()
+                                
+                                # Check if this character continues the current target
+                                next_expected_char = label_str[len(typed_str)] if len(typed_str) < len(label_str) else None
+                                
+                                if next_expected_char == ch:
+                                    target_powerup = current_typing_target
+                            else:
+                                # Current target is no longer valid, clear it
+                                current_typing_target = None
                         
                         # Only find a new target if we don't have a current one
-                        elif target_missile is None:
-                            closest_remaining = None
-                            # Find missiles that can start with this character (only fresh missiles)
+                        if target_missile is None and target_powerup is None:
+                            # Clear all partially typed characters from all objects when starting new word
                             for m in missile_list:
-                                if getattr(m, 'label', None) and getattr(m, 'typed_chars', '') == '':
-                                    label_str = str(m.label).lower()
-                                    
-                                    # Check if this character starts this missile's word
+                                if hasattr(m, 'typed_chars'):
+                                    m.typed_chars = ""
+                            for p in powerup_list:
+                                if hasattr(p, 'typed_chars'):
+                                    p.typed_chars = ""
+                            
+                            closest_remaining = None
+                            # Check powerups first (they're riskier/more valuable)
+                            for p in powerup_list:
+                                if getattr(p, 'label', None):
+                                    label_str = str(p.label).lower()
                                     if label_str.startswith(ch):
-                                        remaining = max(0, m.dist_to_target - m.travel_dist)
-                                        if closest_remaining is None or remaining < closest_remaining:
-                                            closest_remaining = remaining
-                                            target_missile = m
+                                        target_powerup = p
+                                        break  # Prioritize powerups
+                            
+                            # If no powerup found, check missiles
+                            if target_powerup is None:
+                                for m in missile_list:
+                                    if getattr(m, 'label', None):
+                                        label_str = str(m.label).lower()
+                                        
+                                        # Check if this character starts this missile's word
+                                        if label_str.startswith(ch):
+                                            remaining = max(0, m.dist_to_target - m.travel_dist)
+                                            if closest_remaining is None or remaining < closest_remaining:
+                                                closest_remaining = remaining
+                                                target_missile = m
                     
+                    # Handle missile targeting
                     if target_missile is not None:
                         # Set this as our current typing target
                         current_typing_target = target_missile
@@ -144,10 +182,34 @@ def main():
                             except Exception:
                                 pass
                         handled = True
+                    
+                    # Handle powerup targeting
+                    elif target_powerup is not None:
+                        # Set this as our current typing target
+                        current_typing_target = target_powerup
+                        
+                        # Add the typed character to the powerup's progress
+                        target_powerup.typed_chars += ch
+                        
+                        # Check if the word is complete
+                        if target_powerup.typed_chars.lower() == str(target_powerup.label).lower():
+                            # Word complete - activate powerup and remove it
+                            mcgame.activate_powerup(defense)
+                            mcgame.add_score(target_powerup.destroy())
+                            powerup_list.remove(target_powerup)
+                            current_typing_target = None
+                            try:
+                                from functions import play_random_powerup
+                                play_random_powerup()
+                            except Exception:
+                                pass
+                        handled = True
                     elif printable_key:
                         # wrong typing key: if we had a current target, clear it and reset that missile
-                        if current_typing_target is not None and current_typing_target in missile_list:
-                            current_typing_target.typed_chars = ""  # Reset the missile's progress
+                        if current_typing_target is not None:
+                            # Reset progress for whatever type of target it was
+                            if hasattr(current_typing_target, 'typed_chars'):
+                                current_typing_target.typed_chars = ""  # Reset the progress
                             current_typing_target = None  # Clear the target
                         
                         # Play miss sound
@@ -159,10 +221,11 @@ def main():
 
                 # Spacebar firing disabled - typing only game
                 # if not handled and event.key == K_SPACE:
-                #     defence.shoot(missile_list)
+                #     defense.shoot(missile_list)
                 # 'p' no longer pauses; only ESC toggles pause
             if event.type == KEYUP:
-                pass
+                if event.key == K_SPACE:
+                    turbo_mode = False  # Disable turbo mode when space released
 
         # clear the screen before drawing
         screen.fill(BACKGROUND)
@@ -174,8 +237,8 @@ def main():
             city.draw(screen)
         
         # --- interceptor turret
-        defence.update()
-        defence.draw(screen)
+        defense.update()
+        defense.draw(screen)
         
         # --- missiles
         for missile in missile_list[:]:
@@ -187,6 +250,13 @@ def main():
                     current_typing_target = None
                 missile_list.remove(missile)
         
+        # --- powerups
+        for powerup in powerup_list[:]:
+            if not powerup.update():
+                powerup_list.remove(powerup)
+            else:
+                powerup.draw(screen)
+        
         # --- explosions
         for explosion in explosion_list[:]:
             explosion.update()
@@ -195,10 +265,18 @@ def main():
                 explosion_list.remove(explosion)
 
         # --- Draw the interface 
-        mcgame.draw(screen, defence)
+        mcgame.draw(screen, defense)
 
         # --- update game mcgame
         if current_game_state == GAME_STATE_RUNNING:
+            # Update powerup system
+            mcgame.update_powerup_system(defense)
+            
+            # Spawn powerup occasionally
+            if mcgame.should_spawn_powerup():
+                side = random.choice(["left", "right"])
+                powerup_list.append(Powerup(side))
+            
             current_game_state = mcgame.update(missile_list, explosion_list, city_list)
 
         # load message for Game Over and proceed to high-score / menu
@@ -209,7 +287,7 @@ def main():
         if current_game_state == GAME_STATE_NEW_LEVEL:
             # Clear typing target when starting new level
             current_typing_target = None
-            mcgame.new_level(screen, defence)
+            mcgame.new_level(screen, defense)
         
         # Update the display
         pygame.display.update()
@@ -266,10 +344,26 @@ def main():
         # display the high scores
         if current_game_state == GAME_STATE_MENU:
             show_high_scores(screen, high_scores)
-            current_game_state = 0
+            # Restart the game after showing high scores
+            # Reset all game objects
+            missile_list.clear()
+            explosion_list.clear()
+            powerup_list.clear()
+            # Recreate cities (match original positioning)
+            city_list = []
+            for i in range(1, 8):   # 8 == Max num cities plus defense plus one
+                if i == 8 // 2:     # find centre point for gun
+                    pass
+                else:
+                    city_list.append(City(i, 7))   # 7 == max num cities plus guns
+            defense = Defense()
+            mcgame = McGame(1, high_scores["1"]["score"])
+            current_typing_target = None  # Reset typing target
+            current_game_state = GAME_STATE_RUNNING
 
-        # run at pre-set fps
-        clock.tick(FPS)
+        # run at pre-set fps (or turbo speed when space held)
+        fps = FPS * 10 if turbo_mode else FPS  # 10x speed when space held
+        clock.tick(fps)
 
 
 if __name__ == '__main__':
