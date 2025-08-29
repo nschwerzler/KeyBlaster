@@ -36,6 +36,10 @@ class Powerup():
         self.flash_timer = 0
         
     def _choose_hard_word(self):
+        # Import conflict checking functions from main module
+        import __main__
+        can_add_word = getattr(__main__, 'can_add_word', lambda x: True)
+        
         # RISKY words - intentionally difficult to type quickly
         # Mix of uncommon words, tricky spelling, and awkward finger combinations
         risky_words = [
@@ -53,6 +57,19 @@ class Powerup():
             "xylophone", "zephyr", "syzygy", "byzantine", "schizoid", "rhapsody",
             "labyrinth", "synchrony", "toxicity", "xerophyte"
         ]
+        
+        # Try to find a word without conflicts
+        for _ in range(50):  # Max attempts
+            word = random.choice(risky_words)
+            if can_add_word(word):
+                return word
+        
+        # Fallback: try each word in order
+        for word in risky_words:
+            if can_add_word(word):
+                return word
+                
+        # Last resort: return any word
         return random.choice(risky_words)
     
     def update(self):

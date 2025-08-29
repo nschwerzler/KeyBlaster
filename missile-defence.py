@@ -42,9 +42,39 @@ RESERVED_TYPING_KEYS = set()  # no reserved typing keys; only ESC pauses
 # Global variable to track which missile is currently being typed
 current_typing_target = None
 
+# Global set to track active word prefixes (first 2 characters) to avoid conflicts
+active_word_prefixes = set()
+
+# Delayed destruction system for turret animation
+pending_destruction = None  # Target waiting for destruction
+destruction_timer = 0       # Timer for destruction delay
+
+def get_word_prefix(word):
+    """Get the first 2 characters of a word for conflict checking"""
+    if not word or len(word) < 2:
+        return word.lower() if word else ""
+    return word[:2].lower()
+
+def can_add_word(word):
+    """Check if a word can be added without prefix conflicts"""
+    prefix = get_word_prefix(word)
+    return prefix not in active_word_prefixes
+
+def add_word_prefix(word):
+    """Add a word's prefix to the active set"""
+    prefix = get_word_prefix(word)
+    if prefix:
+        active_word_prefixes.add(prefix)
+
+def remove_word_prefix(word):
+    """Remove a word's prefix from the active set"""
+    prefix = get_word_prefix(word)
+    if prefix and prefix in active_word_prefixes:
+        active_word_prefixes.discard(prefix)
+
 
 def main():
-    global current_game_state, current_typing_target
+    global current_game_state, current_typing_target, active_word_prefixes, pending_destruction, destruction_timer
 
     # load high-score file
     high_scores = load_scores("scores.json")
@@ -171,16 +201,11 @@ def main():
                         
                         # Check if the word is complete
                         if target_missile.typed_chars.lower() == str(target_missile.label).lower():
-                            # Word complete - destroy missile and clear target
-                            lead_pos = target_missile.get_future_pos(pixels_ahead=20)
-                            explosion_list.append(Explosion(lead_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
-                            target_missile.label = None
+                            # Word complete - start turret aiming and delay destruction
+                            defense.aim_at_target(target_missile)
+                            pending_destruction = ('missile', target_missile)
+                            destruction_timer = 0
                             current_typing_target = None
-                            try:
-                                from functions import play_random_explode
-                                play_random_explode()
-                            except Exception:
-                                pass
                         handled = True
                     
                     # Handle powerup targeting
@@ -193,16 +218,11 @@ def main():
                         
                         # Check if the word is complete
                         if target_powerup.typed_chars.lower() == str(target_powerup.label).lower():
-                            # Word complete - activate powerup and remove it
-                            mcgame.activate_powerup(defense)
-                            mcgame.add_score(target_powerup.destroy())
-                            powerup_list.remove(target_powerup)
+                            # Word complete - start turret aiming and delay destruction
+                            defense.aim_at_target(target_powerup)
+                            pending_destruction = ('powerup', target_powerup)
+                            destruction_timer = 0
                             current_typing_target = None
-                            try:
-                                from functions import play_random_powerup
-                                play_random_powerup()
-                            except Exception:
-                                pass
                         handled = True
                     elif printable_key:
                         # wrong typing key: if we had a current target, clear it and reset that missile
@@ -248,11 +268,17 @@ def main():
                 # Clear typing target if this missile was being typed
                 if missile == current_typing_target:
                     current_typing_target = None
+                # Remove word prefix from tracking
+                if hasattr(missile, 'label') and missile.label:
+                    remove_word_prefix(missile.label)
                 missile_list.remove(missile)
         
         # --- powerups
         for powerup in powerup_list[:]:
             if not powerup.update():
+                # Remove word prefix from tracking
+                if hasattr(powerup, 'label') and powerup.label:
+                    remove_word_prefix(powerup.label)
                 powerup_list.remove(powerup)
             else:
                 powerup.draw(screen)
@@ -278,6 +304,63 @@ def main():
                 powerup_list.append(Powerup(side))
             
             current_game_state = mcgame.update(missile_list, explosion_list, city_list)
+            
+            # Track word prefixes for newly created missiles
+            for missile in missile_list:
+                if hasattr(missile, 'label') and missile.label and not hasattr(missile, '_prefix_tracked'):
+                    add_word_prefix(missile.label)
+                    missile._prefix_tracked = True
+            
+            # Track word prefixes for newly created powerups
+            for powerup in powerup_list:
+                if hasattr(powerup, 'label') and powerup.label and not hasattr(powerup, '_prefix_tracked'):
+                    add_word_prefix(powerup.label)
+                    powerup._prefix_tracked = True
+            
+            # Handle delayed destruction after turret aiming
+            if pending_destruction is not None:
+                destruction_timer += 1
+                target_type, target_obj = pending_destruction
+                
+                # Check if turret has finished aiming
+                if defense.is_aiming_complete():
+                    if target_type == 'missile':
+                        # Fire laser beam and destroy missile
+                        lead_pos = target_obj.get_future_pos(pixels_ahead=20)
+                        defense.fire_laser(lead_pos)
+                        explosion_list.append(Explosion(lead_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
+                        # Remove word prefix from tracking before clearing label
+                        if hasattr(target_obj, 'label') and target_obj.label:
+                            remove_word_prefix(target_obj.label)
+                        target_obj.label = None
+                        try:
+                            from functions import play_random_explode
+                            play_random_explode()
+                        except Exception:
+                            pass
+                    elif target_type == 'powerup':
+                        # Fire laser beam and destroy powerup
+                        if hasattr(target_obj, 'get_pos'):
+                            powerup_pos = target_obj.get_pos()
+                        else:
+                            powerup_pos = (target_obj.pos[0], target_obj.pos[1])
+                        defense.fire_laser(powerup_pos)
+                        mcgame.activate_powerup(defense)
+                        mcgame.add_score(target_obj.destroy())
+                        # Remove word prefix from tracking
+                        if hasattr(target_obj, 'label') and target_obj.label:
+                            remove_word_prefix(target_obj.label)
+                        powerup_list.remove(target_obj)
+                        try:
+                            from functions import play_random_powerup
+                            play_random_powerup()
+                        except Exception:
+                            pass
+                    
+                    # Reset destruction system
+                    pending_destruction = None
+                    destruction_timer = 0
+                    defense.stop_aiming()
 
         # load message for Game Over and proceed to high-score / menu
         if current_game_state == GAME_STATE_OVER:
@@ -349,6 +432,11 @@ def main():
             missile_list.clear()
             explosion_list.clear()
             powerup_list.clear()
+            # Reset word prefix tracking
+            active_word_prefixes.clear()
+            # Reset delayed destruction system
+            pending_destruction = None
+            destruction_timer = 0
             # Recreate cities (match original positioning)
             city_list = []
             for i in range(1, 8):   # 8 == Max num cities plus defense plus one

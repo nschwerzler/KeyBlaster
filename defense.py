@@ -7,7 +7,7 @@ from functions import *
 class Defense():
     def __init__(self):
         self.pos = (SCREENSIZE[0] // 2, SCREENSIZE[1] - GROUND_LEVEL)  # set initial position of gun
-        self.target_pos = pygame.mouse.get_pos()            # mouse pointer is target point
+        self.target_pos = (SCREENSIZE[0] // 2, SKY_LEVEL)   # default target point (straight up)
         self.angle = 0                                       # angle of gun relative to vertical
         self.ammo = 30                                       # initial amount of ammo
         self.base_color = DEFENCE                            # normal gun colour
@@ -17,6 +17,18 @@ class Defense():
         self.gun_size = 28                                   # length of gun barrel (bigger)
         self.destroyed = False                               # has the defense been destroyed
         self.powerup_active = False                          # tracks powerup state
+        
+        # New targeting system
+        self.current_target = None                           # current target object (missile/powerup)
+        self.is_aiming = False                               # is turret currently aiming at target
+        self.aiming_timer = 0                                # timer for aiming animation
+        self.aiming_duration = 15                            # frames to complete aiming (0.5 seconds at 30 FPS)
+        
+        # Laser beam system
+        self.laser_active = False                            # is laser beam currently visible
+        self.laser_timer = 0                                 # timer for laser beam duration
+        self.laser_duration = 10                             # frames to show laser (0.33 seconds at 30 FPS)
+        self.laser_target_pos = None                         # position where laser should end
         
         # calculate initial angle and gun_end
         self.x = self.target_pos[0] - self.pos[0]
@@ -30,9 +42,48 @@ class Defense():
                         self.pos[1] + int(self.gun_size * math.cos(self.angle)))
 
     def update(self):
-        # update target point to wherever mouse is pointed
-        self.target_pos = pygame.mouse.get_pos()
-        # calculate line to target point
+        # Handle aiming animation
+        if self.is_aiming and self.current_target:
+            # Get target position
+            if hasattr(self.current_target, 'get_pos'):
+                target_center = self.current_target.get_pos()
+            elif hasattr(self.current_target, 'pos'):
+                # For missiles, get center position
+                target_center = (
+                    self.current_target.pos[0], 
+                    self.current_target.pos[1]
+                )
+            else:
+                target_center = self.target_pos
+            
+            # Animate towards target position
+            if self.aiming_timer < self.aiming_duration:
+                # Interpolate between current target_pos and actual target
+                progress = self.aiming_timer / self.aiming_duration
+                # Use easing function for smooth animation
+                eased_progress = 1 - (1 - progress) ** 3  # Ease-out cubic
+                
+                start_x, start_y = self.target_pos
+                end_x, end_y = target_center
+                
+                new_x = start_x + (end_x - start_x) * eased_progress
+                new_y = start_y + (end_y - start_y) * eased_progress
+                
+                self.target_pos = (new_x, new_y)
+                self.aiming_timer += 1
+            else:
+                # Aiming complete
+                self.target_pos = target_center
+        
+        # Handle laser beam animation
+        if self.laser_active:
+            self.laser_timer += 1
+            if self.laser_timer >= self.laser_duration:
+                self.laser_active = False
+                self.laser_timer = 0
+                self.laser_target_pos = None
+        
+        # Calculate angle based on current target position
         self.x = self.target_pos[0] - self.pos[0]       # distance from x origin to x target
         self.y = self.target_pos[1] - self.pos[1]       # distance from y origin to y target
         if self.y != 0:
@@ -70,6 +121,32 @@ class Defense():
         # Draw muzzle tip
         muzzle_color = tuple(min(255, c + 50) for c in self.current_color)
         pygame.draw.circle(screen, muzzle_color, self.gun_end, 3)
+        
+        # Draw laser beam when active
+        if self.laser_active and self.laser_target_pos:
+            # Calculate laser fade based on timer
+            fade_progress = self.laser_timer / self.laser_duration
+            laser_alpha = int(255 * (1 - fade_progress))  # Fade out over time
+            
+            # Create bright blue laser color
+            laser_color = (100, 150, 255)  # Bright blue
+            core_color = (200, 220, 255)   # Bright white-blue core
+            
+            # Draw laser beam with multiple layers for glow effect
+            # Outer glow (thicker, more transparent)
+            outer_surface = pygame.Surface((abs(self.laser_target_pos[0] - self.gun_end[0]) + 20, 
+                                          abs(self.laser_target_pos[1] - self.gun_end[1]) + 20))
+            outer_surface.set_alpha(laser_alpha // 3)
+            
+            # Main beam (medium thickness)
+            pygame.draw.line(screen, laser_color, self.gun_end, self.laser_target_pos, 4)
+            
+            # Inner core (thin, brightest)
+            core_alpha = min(255, laser_alpha + 50)
+            if core_alpha > 0:
+                core_surface = pygame.Surface((2, 2))
+                core_surface.set_alpha(core_alpha)
+                pygame.draw.line(screen, core_color, self.gun_end, self.laser_target_pos, 2)
         
         # Add powerup glow effect when active
         if self.powerup_active:
@@ -111,3 +188,28 @@ class Defense():
         """Deactivate powerup mode - returns turret to normal color"""
         self.powerup_active = False
         self.current_color = self.base_color
+    
+    def aim_at_target(self, target):
+        """Start aiming animation towards a target (missile or powerup)"""
+        self.current_target = target
+        self.is_aiming = True
+        self.aiming_timer = 0
+        # Store starting position for smooth interpolation
+        self.aiming_start_pos = self.target_pos
+    
+    def stop_aiming(self):
+        """Stop aiming but keep current position"""
+        self.is_aiming = False
+        self.current_target = None
+        self.aiming_timer = 0
+        # Keep current target_pos - don't reset to default
+    
+    def is_aiming_complete(self):
+        """Check if the aiming animation is complete"""
+        return self.is_aiming and self.aiming_timer >= self.aiming_duration
+    
+    def fire_laser(self, target_pos):
+        """Activate laser beam towards target position"""
+        self.laser_active = True
+        self.laser_timer = 0
+        self.laser_target_pos = target_pos

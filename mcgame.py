@@ -206,6 +206,10 @@ class McGame():
             return self._choose_word()
     
     def _choose_word(self):
+        # Import conflict checking functions from main module
+        import __main__
+        can_add_word = getattr(__main__, 'can_add_word', lambda x: True)
+        
         # Word lists based on difficulty level with Gen Alpha shorthand
         # Home row biased 2-letter words (easy to type)
         two_letter_words = ["as", "ad", "ah", "if", "is", "of", "go", "do", "so", "to", "at", "it", "up", "hi", "he", "ha", "fr", "np", "ig", "fs"]
@@ -215,28 +219,40 @@ class McGame():
         six_letter_words = ["defend", "shield", "attack", "weapon", "strong", "danger", "flight", "battle", "energy", "launch", "locked", "salty", "savage", "clutch", "periodt", "whatev"]
         long_words = ["missile", "defense", "protect", "freedom", "victory", "command", "destroy", "counter", "nuclear", "warfare", "periodt", "ghosted", "lowkey", "highkey", "cappin", "snatched", "pressed"]
         
+        # Helper function to choose word without conflicts
+        def choose_without_conflict(word_list, max_attempts=50):
+            for _ in range(max_attempts):
+                word = random.choice(word_list)
+                if can_add_word(word):
+                    return word
+            # Fallback: return first available word or any word if none available
+            for word in word_list:
+                if can_add_word(word):
+                    return word
+            return random.choice(word_list)  # Last resort
+        
         # Progressive difficulty: start with 2-letter, gradually add longer words
         if self.difficulty <= 3:
             # Levels 3: Only 2-letter words
-            return random.choice(two_letter_words)
+            return choose_without_conflict(two_letter_words)
         elif self.difficulty <= 5:
             # Levels 4-5: Mix of 2 and 3 letter words
-            return random.choice(two_letter_words + three_letter_words)
+            return choose_without_conflict(two_letter_words + three_letter_words)
         elif self.difficulty <= 7:
             # Levels 6-7: Mostly 3-letter, some 2-letter
-            return random.choice(two_letter_words + three_letter_words * 3)  # Weight 3-letter more
+            return choose_without_conflict(two_letter_words + three_letter_words * 3)  # Weight 3-letter more
         elif self.difficulty <= 9:
             # Levels 8-9: 3 and 4 letter words
-            return random.choice(three_letter_words + four_letter_words)
+            return choose_without_conflict(three_letter_words + four_letter_words)
         elif self.difficulty <= 12:
             # Levels 10-12: 4 and 5 letter words
-            return random.choice(four_letter_words + five_letter_words)
+            return choose_without_conflict(four_letter_words + five_letter_words)
         elif self.difficulty <= 16:
             # Levels 13-16: 5 and 6 letter words
-            return random.choice(five_letter_words + six_letter_words)
+            return choose_without_conflict(five_letter_words + six_letter_words)
         else:
             # Level 17+: 6+ letter words
-            return random.choice(six_letter_words + long_words)
+            return choose_without_conflict(six_letter_words + long_words)
     
     def _calculate_missile_speed(self):
         # Progressive speed scaling: slow start, medium at level 10, very fast at level 20+
