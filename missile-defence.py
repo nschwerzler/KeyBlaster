@@ -1,10 +1,12 @@
 import pygame
 import sys
 #from pygame.locals import *
-#import os
+import os
 import random
 #import math
 import time
+import atexit
+import glob
 
 from config import *
 from functions import *
@@ -15,6 +17,7 @@ from defense import Defense
 from mcgame import McGame
 from powerup import Powerup
 from text import InputBox
+from replay import start_recording, stop_recording, get_recorder, ReplayPlayer
 
 
 # Initialize game engine, screen and clock
@@ -81,11 +84,23 @@ def remove_word_prefix(word):
 def main():
     global current_game_state, typed_sequence, active_word_prefixes, pending_destruction, destruction_timer, destruction_queue, turbo_timer
 
+    # Start replay recording
+    recorder = start_recording()
+    
+    # Register exit handler to save replay on any program termination
+    def save_replay_on_exit():
+        if recorder and recorder.recording:
+            recorder.record_event("program_exit", {"reason": "unexpected_termination"})
+            filename = recorder.save()
+            print(f"Replay auto-saved on exit: {filename}")
+    
+    atexit.register(save_replay_on_exit)
+    
     # load high-score file
     high_scores = load_scores("scores.json")
     
-    # set the random seed - produces more random trajectories
-    random.seed()
+    # set the random seed - this is now handled by replay system for deterministic recording
+    # random.seed() - removed, replay system manages this
 
     #  list of all active explosions
     explosion_list = []
@@ -113,19 +128,68 @@ def main():
     
     # Track turbo mode for testing
     turbo_mode = False
+    
+    # Auto-save timer for replays
+    last_auto_save = time.time()
+    auto_save_interval = 30  # Auto-save every 30 seconds
 
     while True:
         # write event handlers here
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                # Auto-save replay before exiting
+                if recorder:
+                    filename = stop_recording()
+                    print(f"Replay auto-saved as: {filename}")
                 pygame.quit()
                 sys.exit(0)
             if event.type == KEYDOWN:
+                # Record keypress for replay
+                if recorder:
+                    key_char = getattr(event, 'unicode', '') if hasattr(event, 'unicode') else ''
+                    recorder.record_keypress(key_char, event.key)
+                
                 # ESC pauses the game (no exit prompt)
                 if event.key == K_SPACE:
                     turbo_mode = True  # Enable turbo mode when space pressed
                 elif event.key == K_ESCAPE:
                     pause_game(screen)
+                elif event.key == K_F12:  # F12 to copy latest replay path to clipboard
+                    # Get the replay path to display/copy
+                    replay_path = None
+                    if recorder and recorder.filename:
+                        # Use the current recording file path
+                        replay_path = recorder.filename
+                    else:
+                        # Find the most recent replay file
+                        from replay import get_replay_directory
+                        replay_dir = get_replay_directory()
+                        pattern = os.path.join(replay_dir, "replay_*.json")
+                        replay_files = glob.glob(pattern)
+                        
+                        if replay_files:
+                            # Get the most recently modified file
+                            replay_path = max(replay_files, key=os.path.getmtime)
+                    
+                    if replay_path:
+                        # Try to copy to clipboard
+                        try:
+                            import pyperclip
+                            pyperclip.copy(replay_path)
+                            print(f"Replay path copied to clipboard: {replay_path}")
+                        except ImportError:
+                            # Fallback: just display the path for manual copying
+                            print("=" * 60)
+                            print("REPLAY PATH (copy manually):")
+                            print(replay_path)
+                            print("=" * 60)
+                            print("Note: Install 'pip install pyperclip' for automatic clipboard copy")
+                        except Exception as e:
+                            # Show path even if clipboard fails
+                            print(f"Clipboard failed, but here's the path: {replay_path}")
+                            print(f"Error: {e}")
+                    else:
+                        print("No replay files found")
 
                 handled = False
                 # typing-driven interception: sequence matching system
@@ -172,6 +236,9 @@ def main():
                             if can_form_word:
                                 completed_targets.append((target_type, target_obj))
                                 words_found.append(word)
+                                # Record successful word match
+                                if recorder:
+                                    recorder.record_word_match(word, target_type, True)
                                 # Remove word characters from sequence for future matches
                                 for char in word:
                                     if char in sequence_to_check:
@@ -256,6 +323,18 @@ def main():
         screen.fill(BACKGROUND)
 
         # Game logic and draws
+        
+        # Record game state periodically for replay verification
+        if recorder and pygame.time.get_ticks() % 1000 < 50:  # Record every ~1 second
+            current_level = getattr(mcgame, 'difficulty', 1) if 'mcgame' in locals() else 1
+            current_score = getattr(mcgame, 'player_score', 0) if 'mcgame' in locals() else 0
+            recorder.record_game_state(missile_list, powerup_list, typed_sequence, current_level, current_score)
+        
+        # Auto-save replay periodically
+        current_time = time.time()
+        if recorder and (current_time - last_auto_save) >= auto_save_interval:
+            recorder.save()
+            last_auto_save = current_time
         
         # --- cities
         for city in city_list:
@@ -381,10 +460,35 @@ def main():
 
         # load message for Game Over and proceed to high-score / menu
         if current_game_state == GAME_STATE_OVER:
+            # Auto-save replay when game ends
+            if recorder:
+                recorder.record_event("game_over", {"final_score": getattr(mcgame, 'player_score', 0)})
+                filename = recorder.save()
             mcgame.game_over(screen)
 
         # load a message and set new game values for start new level
         if current_game_state == GAME_STATE_NEW_LEVEL:
+            # Record level completion and save replay
+            if recorder:
+                current_level = getattr(mcgame, 'difficulty', 1) if 'mcgame' in locals() else 1
+                current_score = getattr(mcgame, 'player_score', 0) if 'mcgame' in locals() else 0
+                
+                # Record level completion with detailed stats
+                recorder.record_event("level_completed", {
+                    "level": current_level,
+                    "score": current_score,
+                    "remaining_cities": len([city for city in city_list if not getattr(city, 'destroyed', False)]),
+                    "powerups_on_screen": len(powerup_list),
+                    "missiles_on_screen": len(missile_list)
+                })
+                
+                # Save replay after each level completion
+                filename = recorder.save()
+                print(f"Level {current_level} completed - Replay saved: {os.path.basename(filename) if filename else 'Failed'}")
+                
+                # Record the start of new level (difficulty will increment after new_level call)
+                recorder.record_level_change(current_level + 1)
+            
             # Reset typing state and turbo mode when starting new level
             typed_sequence = ""
             turbo_mode = False

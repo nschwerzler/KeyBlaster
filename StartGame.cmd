@@ -4,18 +4,29 @@ setlocal EnableExtensions EnableDelayedExpansion
 rem Change to the directory of this script
 pushd "%~dp0"
 
-echo === KeyBlaster Launcher ===
+rem Set console colors and title
+title KeyBlaster - Missile Defense Game
+color 0A
+
+echo.
+echo ===============================================================================
+echo                             KEYBLASTER LAUNCHER                              
+echo                          Missile Defense Typing Game                        
+echo ===============================================================================
+echo.
 
 rem Detect Python 3 (PATH and common locations)
 call :FindPython
 if errorlevel 1 (
+  echo [WARNING] Python 3 not found on PATH or standard locations.
+  echo [INFO] Attempting automatic installation via winget...
   echo.
-  echo [INFO] Python 3 not found on PATH or standard locations. Attempting automatic install via winget...
   call :InstallPython3
   if errorlevel 1 (
     echo.
     echo [ERROR] Automatic Python installation failed or Python still not available.
-    echo         Please install Python 3 from https://www.python.org/downloads/ and re-run this script.
+    echo         Please install Python 3 from https://www.python.org/downloads/
+    echo         and re-run this script.
     echo.
     pause
     popd
@@ -26,7 +37,7 @@ if errorlevel 1 (
 
 rem Create a virtual environment if missing
 if not exist ".venv\Scripts\python.exe" (
-  echo Creating virtual environment in .venv ...
+  echo [INFO] Creating virtual environment in .venv ...
   %PY% -m venv .venv
   if errorlevel 1 (
     echo.
@@ -37,15 +48,17 @@ if not exist ".venv\Scripts\python.exe" (
     endlocal
     exit /b 1
   )
+  echo [SUCCESS] Virtual environment created successfully!
+  echo.
 )
 
 rem Ensure pip is up to date and install dependencies
-echo Installing/updating dependencies ...
+echo [INFO] Installing/updating dependencies ...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip >nul
 ".venv\Scripts\python.exe" -m pip install --only-binary=:all: -r requirements.txt
 if errorlevel 1 (
   echo.
-  echo [WARN] Installing from requirements.txt failed. Trying pygame wheel directly...
+  echo [WARNING] Installing from requirements.txt failed. Trying pygame wheel directly...
   ".venv\Scripts\python.exe" -m pip install --only-binary=:all: --upgrade pygame
   if errorlevel 1 (
     echo.
@@ -57,20 +70,47 @@ if errorlevel 1 (
     exit /b 1
   )
 )
+echo [SUCCESS] Dependencies installed successfully!
 
 echo.
-echo Launching game ...
+echo ===============================================================================
+echo                                 GAME READY!                                  
+echo ===============================================================================
+echo.
+echo --- GAME CONTROLS -------------------------------------------------------------
+echo   * Type words to destroy missiles and powerups                              
+echo   * ESC = Pause game                                                         
+echo   * SPACE = Temporary turbo mode (hold)                                      
+echo ------------------------------------------------------------------------------- 
+echo.
+echo --- DEBUG FEATURES ------------------------------------------------------------
+echo   * F12 = Copy current replay path for debugging                             
+echo   * Replays auto-save every 30 seconds and when game ends                   
+echo   * Replay files: %%APPDATA%%\KeyBlaster\Replays\                             
+echo.                                                                             
+echo --- REPLAY ANALYSIS -----------------------------------------------------------
+echo   * View latest replay:  python view_replay.py --latest                     
+echo   * List all replays:    python view_replay.py --list                       
+echo   * Analyze specific:    python view_replay.py replay_2025-01-15_14-30-45.json
+echo   * Contains: keystroke sequence, word matches, game state, AI debug hints  
+echo -------------------------------------------------------------------------------
+echo.
+echo [INFO] Starting KeyBlaster...
+echo.
 ".venv\Scripts\python.exe" "missile-defence.py"
 set EXITCODE=%errorlevel%
 
 echo.
+echo ===============================================================================
 if %EXITCODE% neq 0 (
-  echo Game exited with code %EXITCODE%.
+  echo                         Game exited with code %EXITCODE%                          
 ) else (
-  echo Game closed.
+  echo                             Game closed normally                            
 )
+echo ===============================================================================
 echo.
-pause
+echo Press any key to close this launcher...
+pause >nul
 
 popd
 endlocal & exit /b %EXITCODE%
