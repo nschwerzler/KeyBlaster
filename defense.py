@@ -22,7 +22,7 @@ class Defense():
         self.current_target = None                           # current target object (missile/powerup)
         self.is_aiming = False                               # is turret currently aiming at target
         self.aiming_timer = 0                                # timer for aiming animation
-        self.aiming_duration = 15                            # frames to complete aiming (0.5 seconds at 30 FPS)
+        self.aiming_duration = 8                             # frames to complete aiming (0.27 seconds at 30 FPS)
         
         # Laser beam system
         self.laser_active = False                            # is laser beam currently visible

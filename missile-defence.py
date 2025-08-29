@@ -39,8 +39,8 @@ except Exception:
 ALLOWED_TYPING_KEYS = set(list("qwertyuiop") + list("asdfghjkl;") + list("zxcvbnm"))  # labels include 'p'
 RESERVED_TYPING_KEYS = set()  # no reserved typing keys; only ESC pauses
 
-# Global variable to track which missile is currently being typed
-current_typing_target = None
+# Global variable to track typed sequence
+typed_sequence = ""  # Current sequence of typed characters
 
 # Global set to track active word prefixes (first 2 characters) to avoid conflicts
 active_word_prefixes = set()
@@ -48,6 +48,11 @@ active_word_prefixes = set()
 # Delayed destruction system for turret animation
 pending_destruction = None  # Target waiting for destruction
 destruction_timer = 0       # Timer for destruction delay
+destruction_queue = []      # Queue of targets waiting for destruction
+
+# Temporary turbo mode system
+turbo_timer = 0             # Timer for temporary turbo mode
+turbo_duration = 15         # Frames for turbo mode (0.5 seconds at 30 FPS)
 
 def get_word_prefix(word):
     """Get the first 2 characters of a word for conflict checking"""
@@ -74,7 +79,7 @@ def remove_word_prefix(word):
 
 
 def main():
-    global current_game_state, current_typing_target, active_word_prefixes, pending_destruction, destruction_timer
+    global current_game_state, typed_sequence, active_word_prefixes, pending_destruction, destruction_timer, destruction_queue, turbo_timer
 
     # load high-score file
     high_scores = load_scores("scores.json")
@@ -123,116 +128,116 @@ def main():
                     pause_game(screen)
 
                 handled = False
-                # typing-driven interception: if a labeled key is pressed, trigger an explosion
-                # use event.unicode for character; ignore non-printable keys
+                # typing-driven interception: sequence matching system
                 if hasattr(event, 'unicode') and event.unicode:
                     ch = event.unicode.lower()
                     # react to printable single characters that aren't reserved hotkeys
                     printable_key = len(ch) == 1 and ch.isprintable() and ch not in RESERVED_TYPING_KEYS
-                    target_missile = None
-                    target_powerup = None
                     
-                    if printable_key:
-                        # Check if we have a current typing target that's still valid
-                        if current_typing_target is not None:
-                            # Check if current target is a missile
-                            if current_typing_target in missile_list and getattr(current_typing_target, 'label', None):
-                                label_str = str(current_typing_target.label).lower()
-                                typed_str = getattr(current_typing_target, 'typed_chars', '').lower()
-                                
-                                # Check if this character continues the current target
-                                next_expected_char = label_str[len(typed_str)] if len(typed_str) < len(label_str) else None
-                                
-                                if next_expected_char == ch:
-                                    target_missile = current_typing_target
-                            # Check if current target is a powerup
-                            elif current_typing_target in powerup_list and getattr(current_typing_target, 'label', None):
-                                label_str = str(current_typing_target.label).lower()
-                                typed_str = getattr(current_typing_target, 'typed_chars', '').lower()
-                                
-                                # Check if this character continues the current target
-                                next_expected_char = label_str[len(typed_str)] if len(typed_str) < len(label_str) else None
-                                
-                                if next_expected_char == ch:
-                                    target_powerup = current_typing_target
-                            else:
-                                # Current target is no longer valid, clear it
-                                current_typing_target = None
+                    if printable_key and ch in ALLOWED_TYPING_KEYS:
+                        # Add character to typed sequence
+                        typed_sequence += ch
                         
-                        # Only find a new target if we don't have a current one
-                        if target_missile is None and target_powerup is None:
-                            # Clear all partially typed characters from all objects when starting new word
+                        # Check for complete word matches (find words within the sequence)
+                        completed_targets = []
+                        words_found = []
+                        
+                        # Collect all words on screen (normalize to lowercase for comparison)
+                        all_words = []
+                        for p in powerup_list:
+                            if getattr(p, 'label', None):
+                                all_words.append(('powerup', p, str(p.label).lower()))
+                        for m in missile_list:
+                            if getattr(m, 'label', None):
+                                all_words.append(('missile', m, str(m.label).lower()))
+                        
+                        # Find completed words in the typed sequence (case insensitive)
+                        sequence_to_check = typed_sequence.lower()  # Convert to lowercase for matching
+                        
+                        # Sort words by length (longest first) to prioritize longer matches
+                        all_words.sort(key=lambda x: len(x[2]), reverse=True)
+                        
+                        # Check each word to see if it can be formed from the sequence characters
+                        for target_type, target_obj, word in all_words:
+                            # Check if all characters of the word can be found in the sequence
+                            sequence_chars = list(sequence_to_check)
+                            can_form_word = True
+                            for char in word:
+                                if char in sequence_chars:
+                                    sequence_chars.remove(char)  # Remove used character
+                                else:
+                                    can_form_word = False
+                                    break
+                            
+                            if can_form_word:
+                                completed_targets.append((target_type, target_obj))
+                                words_found.append(word)
+                                # Remove word characters from sequence for future matches
+                                for char in word:
+                                    if char in sequence_to_check:
+                                        sequence_to_check = sequence_to_check.replace(char, "", 1)
+                        
+                        # Process completed words
+                        if completed_targets:
+                            for target_type, target_obj in completed_targets:
+                                if pending_destruction is None:
+                                    # Start destruction immediately
+                                    defense.aim_at_target(target_obj)
+                                    pending_destruction = (target_type, target_obj)
+                                    destruction_timer = 0
+                                else:
+                                    # Queue for later destruction
+                                    destruction_queue.append((target_type, target_obj))
+                            
+                            # Clear the typed sequence since we found and processed matches
+                            # In a queue system, once words are matched, we start fresh
+                            typed_sequence = ""
+                            handled = True
+                        else:
+                            # Check if current sequence has any potential matches (case insensitive)
+                            has_potential_match = False
+                            typed_lower = typed_sequence.lower()
                             for m in missile_list:
-                                if hasattr(m, 'typed_chars'):
-                                    m.typed_chars = ""
-                            for p in powerup_list:
-                                if hasattr(p, 'typed_chars'):
-                                    p.typed_chars = ""
+                                if getattr(m, 'label', None):
+                                    if str(m.label).lower().find(typed_lower) != -1:
+                                        has_potential_match = True
+                                        break
+                            if not has_potential_match:
+                                for p in powerup_list:
+                                    if getattr(p, 'label', None):
+                                        if str(p.label).lower().find(typed_lower) != -1:
+                                            has_potential_match = True
+                                            break
                             
-                            closest_remaining = None
-                            # Check powerups first (they're riskier/more valuable)
-                            for p in powerup_list:
-                                if getattr(p, 'label', None):
-                                    label_str = str(p.label).lower()
-                                    if label_str.startswith(ch):
-                                        target_powerup = p
-                                        break  # Prioritize powerups
-                            
-                            # If no powerup found, check missiles
-                            if target_powerup is None:
+                            if not has_potential_match:
+                                # No potential matches - check if key exists on screen at all
+                                key_on_screen = False
                                 for m in missile_list:
-                                    if getattr(m, 'label', None):
-                                        label_str = str(m.label).lower()
-                                        
-                                        # Check if this character starts this missile's word
-                                        if label_str.startswith(ch):
-                                            remaining = max(0, m.dist_to_target - m.travel_dist)
-                                            if closest_remaining is None or remaining < closest_remaining:
-                                                closest_remaining = remaining
-                                                target_missile = m
-                    
-                    # Handle missile targeting
-                    if target_missile is not None:
-                        # Set this as our current typing target
-                        current_typing_target = target_missile
-                        
-                        # Add the typed character to the missile's progress
-                        target_missile.typed_chars += ch
-                        
-                        # Check if the word is complete
-                        if target_missile.typed_chars.lower() == str(target_missile.label).lower():
-                            # Word complete - start turret aiming and delay destruction
-                            defense.aim_at_target(target_missile)
-                            pending_destruction = ('missile', target_missile)
-                            destruction_timer = 0
-                            current_typing_target = None
-                        handled = True
-                    
-                    # Handle powerup targeting
-                    elif target_powerup is not None:
-                        # Set this as our current typing target
-                        current_typing_target = target_powerup
-                        
-                        # Add the typed character to the powerup's progress
-                        target_powerup.typed_chars += ch
-                        
-                        # Check if the word is complete
-                        if target_powerup.typed_chars.lower() == str(target_powerup.label).lower():
-                            # Word complete - start turret aiming and delay destruction
-                            defense.aim_at_target(target_powerup)
-                            pending_destruction = ('powerup', target_powerup)
-                            destruction_timer = 0
-                            current_typing_target = None
-                        handled = True
+                                    if getattr(m, 'label', None) and ch in str(m.label).lower():
+                                        key_on_screen = True
+                                        break
+                                if not key_on_screen:
+                                    for p in powerup_list:
+                                        if getattr(p, 'label', None) and ch in str(p.label).lower():
+                                            key_on_screen = True
+                                            break
+                                
+                                if not key_on_screen:
+                                    # Key not on screen anywhere - activate temporary turbo mode
+                                    turbo_timer = turbo_duration
+                                
+                                # Reset sequence and play miss sound
+                                typed_sequence = ""
+                                try:
+                                    from functions import play_random_miss
+                                    play_random_miss()
+                                except Exception:
+                                    pass
+                                handled = True
+                            # If has_potential_match is True, we don't reset the sequence and keep building it
                     elif printable_key:
-                        # wrong typing key: if we had a current target, clear it and reset that missile
-                        if current_typing_target is not None:
-                            # Reset progress for whatever type of target it was
-                            if hasattr(current_typing_target, 'typed_chars'):
-                                current_typing_target.typed_chars = ""  # Reset the progress
-                            current_typing_target = None  # Clear the target
-                        
-                        # Play miss sound
+                        # Invalid key - reset sequence
+                        typed_sequence = ""
                         try:
                             from functions import play_random_miss
                             play_random_miss()
@@ -265,9 +270,6 @@ def main():
             missile.update(explosion_list)
             missile.draw(screen)
             if missile.detonated:
-                # Clear typing target if this missile was being typed
-                if missile == current_typing_target:
-                    current_typing_target = None
                 # Remove word prefix from tracking
                 if hasattr(missile, 'label') and missile.label:
                     remove_word_prefix(missile.label)
@@ -345,6 +347,10 @@ def main():
                         else:
                             powerup_pos = (target_obj.pos[0], target_obj.pos[1])
                         defense.fire_laser(powerup_pos)
+                        
+                        # Add explosion effect for powerup destruction
+                        explosion_list.append(Explosion(powerup_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
+                        
                         mcgame.activate_powerup(defense)
                         mcgame.add_score(target_obj.destroy())
                         # Remove word prefix from tracking
@@ -357,10 +363,21 @@ def main():
                         except Exception:
                             pass
                     
-                    # Reset destruction system
+                    # Reset destruction system and process queue
                     pending_destruction = None
                     destruction_timer = 0
                     defense.stop_aiming()
+                    
+                    # Process next item in queue if any
+                    if destruction_queue:
+                        next_target_type, next_target_obj = destruction_queue.pop(0)
+                        defense.aim_at_target(next_target_obj)
+                        pending_destruction = (next_target_type, next_target_obj)
+                        destruction_timer = 0
+            
+            # Update temporary turbo mode timer
+            if turbo_timer > 0:
+                turbo_timer -= 1
 
         # load message for Game Over and proceed to high-score / menu
         if current_game_state == GAME_STATE_OVER:
@@ -368,8 +385,16 @@ def main():
 
         # load a message and set new game values for start new level
         if current_game_state == GAME_STATE_NEW_LEVEL:
-            # Clear typing target when starting new level
-            current_typing_target = None
+            # Reset typing state and turbo mode when starting new level
+            typed_sequence = ""
+            turbo_mode = False
+            turbo_timer = 0
+            # Re-track all existing powerup word prefixes for the new level
+            for powerup in powerup_list:
+                if hasattr(powerup, 'label') and powerup.label:
+                    # Remove old prefix tracking flag and re-add to system
+                    if hasattr(powerup, '_prefix_tracked'):
+                        delattr(powerup, '_prefix_tracked')
             mcgame.new_level(screen, defense)
         
         # Update the display
@@ -437,6 +462,7 @@ def main():
             # Reset delayed destruction system
             pending_destruction = None
             destruction_timer = 0
+            destruction_queue.clear()
             # Recreate cities (match original positioning)
             city_list = []
             for i in range(1, 8):   # 8 == Max num cities plus defense plus one
@@ -446,11 +472,11 @@ def main():
                     city_list.append(City(i, 7))   # 7 == max num cities plus guns
             defense = Defense()
             mcgame = McGame(1, high_scores["1"]["score"])
-            current_typing_target = None  # Reset typing target
+            typed_sequence = ""  # Reset typed sequence
             current_game_state = GAME_STATE_RUNNING
 
-        # run at pre-set fps (or turbo speed when space held)
-        fps = FPS * 10 if turbo_mode else FPS  # 10x speed when space held
+        # run at pre-set fps (or turbo speed when space held or wrong key pressed)
+        fps = FPS * 10 if (turbo_mode or turbo_timer > 0) else FPS  # 10x speed when space held or temporary turbo
         clock.tick(fps)
 
 

@@ -4,7 +4,8 @@
       "Bash(python3:*)",
       "Bash(StartGame.cmd)",
       "Bash(cmd:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(where python)"
     ],
     "deny": [],
     "ask": []

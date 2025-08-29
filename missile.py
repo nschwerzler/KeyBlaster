@@ -33,7 +33,6 @@ class Missile():
                                 target_pos)         # full distance to target position
         self.detonated = False                      # has the missile detonated
         self.label = label                          # optional key label for typing mode
-        self.typed_chars = ""                       # characters typed so far for multi-char words
         
     # draw the missile and trail
     def draw(self, screen):
@@ -51,11 +50,23 @@ class Missile():
         # draw the optional key label near the warhead
         if self.label:
             try:
-                # Show label with typed characters highlighted
+                # Show label with typed sequence highlighting
                 full_label = str(self.label).upper()
-                typed_portion = self.typed_chars.upper()
                 
-                if len(typed_portion) > 0 and full_label.startswith(typed_portion):
+                # Get global typed sequence from main module
+                import __main__
+                typed_seq = getattr(__main__, 'typed_sequence', '').upper()
+                
+                # Find if any part of typed sequence matches this word
+                typed_portion = ""
+                if typed_seq:
+                    for i in range(len(typed_seq), 0, -1):
+                        seq_part = typed_seq[-i:]
+                        if full_label.startswith(seq_part):
+                            typed_portion = seq_part
+                            break
+                
+                if len(typed_portion) > 0:
                     # Show typed chars in different color, remaining chars in normal color
                     typed_surface = game_font.render(typed_portion, False, (0, 255, 0))  # Green for typed
                     remaining = full_label[len(typed_portion):]
