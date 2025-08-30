@@ -138,8 +138,10 @@ class McGame():
         if city_list == []:
             return GAME_STATE_OVER
 
-        # start next level
-        if missile_list == [] and explosion_list == []:
+        # start next level - check if all threats are cleared including mega explosions
+        import __main__
+        mega_explosion_list = getattr(__main__, 'mega_explosion_list', [])
+        if missile_list == [] and explosion_list == [] and mega_explosion_list == []:
             return GAME_STATE_NEW_LEVEL
 
         return GAME_STATE_RUNNING

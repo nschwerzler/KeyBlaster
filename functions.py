@@ -438,10 +438,16 @@ def check_collisions(missile_list, explosion_list, city_list):
             if explosion.get_radius() > distance(explosion.get_center(), city.get_pos()):
                 city.set_destroyed(True)    # might not be needed if I just remove city from list
                 city_list.remove(city)
-                try:
-                    play_random_citydown()
-                except Exception:
-                    pass
+                # Only play destruction sound if we're not in a level transition state
+                import __main__
+                current_game_state = getattr(__main__, 'current_game_state', None)
+                GAME_STATE_NEW_LEVEL = getattr(__main__, 'GAME_STATE_NEW_LEVEL', None)
+                
+                if current_game_state != GAME_STATE_NEW_LEVEL:
+                    try:
+                        play_random_citydown()
+                    except Exception:
+                        pass
 
     return score
 

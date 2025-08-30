@@ -67,19 +67,35 @@ class Missile():
                             break
                 
                 if len(typed_portion) > 0:
-                    # Show typed chars in different color, remaining chars in normal color
-                    typed_surface = game_font.render(typed_portion, False, (0, 255, 0))  # Green for typed
-                    remaining = full_label[len(typed_portion):]
-                    remaining_surface = game_font.render(remaining, False, INTERFACE_SEC)  # Normal color for remaining
+                    # Create larger font for typed portion
+                    large_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 20)  # Bigger font for typed letters
                     
-                    # Position both parts
+                    # Show typed chars in bright green with larger font, remaining chars dimmed
+                    typed_surface = large_font.render(typed_portion, False, (0, 255, 100))  # Bright green for typed
+                    remaining = full_label[len(typed_portion):]
+                    remaining_surface = game_font.render(remaining, False, (120, 120, 120))  # Dimmed gray for remaining
+                    
+                    # Position both parts (account for different font heights)
                     total_width = typed_surface.get_width() + remaining_surface.get_width()
                     start_x = self.pos[0] - (total_width // 2)
-                    screen.blit(typed_surface, (start_x, self.pos[1] - 20))
+                    
+                    # Add background highlight for typed portion
+                    typed_bg = pygame.Surface((typed_surface.get_width() + 4, typed_surface.get_height() + 2))
+                    typed_bg.fill((0, 50, 0))  # Dark green background
+                    screen.blit(typed_bg, (start_x - 2, self.pos[1] - 23))
+                    
+                    # Draw typed portion with larger font
+                    screen.blit(typed_surface, (start_x, self.pos[1] - 22))
+                    # Draw remaining portion aligned to baseline
                     screen.blit(remaining_surface, (start_x + typed_surface.get_width(), self.pos[1] - 20))
                 else:
-                    # Show normal label
-                    label_surface = game_font.render(full_label, False, INTERFACE_SEC)
+                    # Show untyped words - single letters stay bright, longer words are dimmed
+                    if len(full_label) == 1:
+                        color = (255, 255, 255)  # Bright white for single letters
+                    else:
+                        color = (160, 160, 160)  # Light gray for longer untyped words
+                    
+                    label_surface = game_font.render(full_label, False, color)
                     screen.blit(label_surface, (self.pos[0] - (label_surface.get_width() // 2), self.pos[1] - 20))
             except Exception:
                 # fail-safe: ignore label draw issues
