@@ -195,6 +195,12 @@ class McGame():
     def add_score(self, points):
         # Add points with current multiplier
         self.player_score += int(points * self.point_multiplier)
+    
+    def award_city_bonuses(self, city_list):
+        # Award 100 points for each surviving city at level end
+        city_bonus = len(city_list) * 100
+        self.player_score += city_bonus
+        return city_bonus
 
     # choose a keyboard key label with home-row bias, or words for higher levels
     def _choose_key_label(self):

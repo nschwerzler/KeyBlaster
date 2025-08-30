@@ -18,6 +18,7 @@ from mcgame import McGame
 from powerup import Powerup
 from text import InputBox
 from replay import start_recording, stop_recording, get_recorder, ReplayPlayer
+from city_bonus import CityBonus
 
 
 # Initialize game engine, screen and clock
@@ -107,6 +108,8 @@ def main():
     # list of all active missiles
     missile_list = []
     powerup_list = []
+    # list of city bonus animations
+    city_bonus_list = []
     # TBC - generate the cities
     # need to be replaced with working cities
     city_list = []
@@ -357,6 +360,13 @@ def main():
             else:
                 powerup.draw(screen)
         
+        # --- city bonus animations
+        for city_bonus in city_bonus_list[:]:
+            if not city_bonus.update():
+                city_bonus_list.remove(city_bonus)
+            else:
+                city_bonus.draw(screen)
+        
         # --- explosions
         for explosion in explosion_list[:]:
             explosion.update()
@@ -486,6 +496,14 @@ def main():
                     
                     # Record the start of new level (difficulty will increment after new_level call)
                     recorder.record_level_change(current_level + 1)
+            
+            # Award city survival bonuses and create animations
+            city_bonus = mcgame.award_city_bonuses(city_list)
+            if city_bonus > 0:
+                # Create bonus animations above each surviving city
+                for city in city_list:
+                    if not getattr(city, 'destroyed', False):
+                        city_bonus_list.append(CityBonus(city.get_pos()))
             
             # Reset typing state and turbo mode when starting new level
             typed_sequence = ""  # Clear any partial typing
