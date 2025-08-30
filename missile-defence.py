@@ -438,7 +438,8 @@ def main():
                         # Remove word prefix from tracking
                         if hasattr(target_obj, 'label') and target_obj.label:
                             remove_word_prefix(target_obj.label)
-                        powerup_list.remove(target_obj)
+                        if target_obj in powerup_list:
+                            powerup_list.remove(target_obj)
                         try:
                             from functions import play_random_powerup
                             play_random_powerup()
