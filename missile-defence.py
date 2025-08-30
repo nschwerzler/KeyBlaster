@@ -597,7 +597,8 @@ def main():
             current_game_state = GAME_STATE_RUNNING
 
         # run at pre-set fps (or turbo speed when space held or wrong key pressed)
-        fps = FPS * 10 if (turbo_mode or turbo_timer > 0) else FPS  # 10x speed when space held or temporary turbo
+        # Limit turbo speed to prevent key event processing issues
+        fps = FPS * 5 if (turbo_mode or turbo_timer > 0) else FPS  # 5x speed instead of 10x to improve key responsiveness
         clock.tick(fps)
 
 
