@@ -97,7 +97,7 @@ def main():
     atexit.register(save_replay_on_exit)
     
     # load high-score file
-    high_scores = load_scores("scores.json")
+    high_scores = load_scores()  # Now uses AppData directory by default
     
     # set the random seed - this is now handled by replay system for deterministic recording
     # random.seed() - removed, replay system manages this
@@ -205,47 +205,33 @@ def main():
                         # Add character to typed sequence
                         typed_sequence += ch
                         
-                        # Check for complete word matches (find words within the sequence)
+                        # Check for complete word matches (simple exact substring matching)
                         completed_targets = []
                         words_found = []
+                        sequence_lower = typed_sequence.lower()
                         
-                        # Collect all words on screen (normalize to lowercase for comparison)
+                        # Collect all words on screen and check for exact matches
                         all_words = []
                         for p in powerup_list:
                             if getattr(p, 'label', None):
-                                all_words.append(('powerup', p, str(p.label).lower()))
-                        for m in missile_list:
-                            if getattr(m, 'label', None):
-                                all_words.append(('missile', m, str(m.label).lower()))
+                                word_lower = str(p.label).lower()
+                                if word_lower == sequence_lower:  # Exact match only
+                                    completed_targets.append(('powerup', p))
+                                    words_found.append(word_lower)
+                                    if recorder:
+                                        recorder.record_word_match(word_lower, 'powerup', True)
+                                    break  # Only one exact match needed
                         
-                        # Find completed words in the typed sequence (case insensitive)
-                        sequence_to_check = typed_sequence.lower()  # Convert to lowercase for matching
-                        
-                        # Sort words by length (longest first) to prioritize longer matches
-                        all_words.sort(key=lambda x: len(x[2]), reverse=True)
-                        
-                        # Check each word to see if it can be formed from the sequence characters
-                        for target_type, target_obj, word in all_words:
-                            # Check if all characters of the word can be found in the sequence
-                            sequence_chars = list(sequence_to_check)
-                            can_form_word = True
-                            for char in word:
-                                if char in sequence_chars:
-                                    sequence_chars.remove(char)  # Remove used character
-                                else:
-                                    can_form_word = False
-                                    break
-                            
-                            if can_form_word:
-                                completed_targets.append((target_type, target_obj))
-                                words_found.append(word)
-                                # Record successful word match
-                                if recorder:
-                                    recorder.record_word_match(word, target_type, True)
-                                # Remove word characters from sequence for future matches
-                                for char in word:
-                                    if char in sequence_to_check:
-                                        sequence_to_check = sequence_to_check.replace(char, "", 1)
+                        if not completed_targets:  # Only check missiles if no powerup match
+                            for m in missile_list:
+                                if getattr(m, 'label', None):
+                                    word_lower = str(m.label).lower()
+                                    if word_lower == sequence_lower:  # Exact match only
+                                        completed_targets.append(('missile', m))
+                                        words_found.append(word_lower)
+                                        if recorder:
+                                            recorder.record_word_match(word_lower, 'missile', True)
+                                        break  # Only one exact match needed
                         
                         # Process completed words
                         if completed_targets:
@@ -264,18 +250,22 @@ def main():
                             typed_sequence = ""
                             handled = True
                         else:
-                            # Check if current sequence has any potential matches (case insensitive)
+                            # Check if current sequence is a prefix of any word (optimized)
                             has_potential_match = False
                             typed_lower = typed_sequence.lower()
-                            for m in missile_list:
-                                if getattr(m, 'label', None):
-                                    if str(m.label).lower().find(typed_lower) != -1:
+                            
+                            # Check powerups first (priority)
+                            for p in powerup_list:
+                                if getattr(p, 'label', None):
+                                    if str(p.label).lower().startswith(typed_lower):
                                         has_potential_match = True
                                         break
+                            
+                            # Only check missiles if no powerup prefix match
                             if not has_potential_match:
-                                for p in powerup_list:
-                                    if getattr(p, 'label', None):
-                                        if str(p.label).lower().find(typed_lower) != -1:
+                                for m in missile_list:
+                                    if getattr(m, 'label', None):
+                                        if str(m.label).lower().startswith(typed_lower):
                                             has_potential_match = True
                                             break
                             
@@ -562,7 +552,7 @@ def main():
             try:
                 score = mcgame.get_player_score()
                 high_scores = update_high_scores(score, name, high_scores)
-                save_high_scores("scores.json", high_scores)
+                save_high_scores(None, high_scores)  # Uses AppData directory by default
             except Exception:
                 pass
 

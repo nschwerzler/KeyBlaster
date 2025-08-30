@@ -446,10 +446,52 @@ def check_collisions(missile_list, explosion_list, city_list):
     return score
 
 
-def load_scores(file):
+def get_keyblaster_data_dir():
+    """Get the KeyBlaster data directory in %APPDATA%"""
+    import os
+    appdata = os.environ.get('APPDATA')
+    if not appdata:
+        # Fallback to current directory if APPDATA not available
+        return os.getcwd()
+    
+    keyblaster_dir = os.path.join(appdata, 'KeyBlaster')
+    
+    # Create directory if it doesn't exist
+    os.makedirs(keyblaster_dir, exist_ok=True)
+    
+    return keyblaster_dir
+
+
+def get_scores_path():
+    """Get the full path to the scores.json file in AppData"""
+    return os.path.join(get_keyblaster_data_dir(), 'scores.json')
+
+
+def load_scores(file=None):
     # open a json file containing scores and return dict
-    with open(file) as f:
-        return json.load(f)
+    if file is None:
+        file = get_scores_path()
+    
+    try:
+        with open(file) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # If scores file doesn't exist, create default high scores
+        default_scores = {
+            "1": {"name": "ACE", "score": 100000},
+            "2": {"name": "PRO", "score": 85000},
+            "3": {"name": "EXP", "score": 70000},
+            "4": {"name": "VET", "score": 60000},
+            "5": {"name": "ADV", "score": 50000},
+            "6": {"name": "MID", "score": 40000},
+            "7": {"name": "INT", "score": 30000},
+            "8": {"name": "BEG", "score": 22000},
+            "9": {"name": "NOV", "score": 16000},
+            "10": {"name": "NEW", "score": 10000}
+        }
+        # Save default scores to file
+        save_high_scores(file, default_scores)
+        return default_scores
     
 
 def update_high_scores(score, name, high_scores):
@@ -487,6 +529,9 @@ def check_high_score(score, high_scores):
     
 def save_high_scores(file, high_scores):
     # save high-scores to file
+    if file is None:
+        file = get_scores_path()
+    
     j = json.dumps(high_scores)
     f = open(file, "w")
     f.write(j)

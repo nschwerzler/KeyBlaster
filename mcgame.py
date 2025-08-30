@@ -26,7 +26,7 @@ class McGame():
         self.flash_timer = 0         # For flashing effect
         
         # Create smaller font for bonus text
-        self.small_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 12)
+        self.small_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 10)
 
     def draw(self, screen, defense):
         # draw the HUD, score, etc
@@ -52,9 +52,16 @@ class McGame():
                 int(min(255, base_color[2] + 50 * (1 - alpha_multiplier)))  # Add blue tint when dimmed
             )
             
-            # Use smaller font for bonus text
-            multiplier_text = self.small_font.render('2X POINTS!', False, flash_color)
-            screen.blit(multiplier_text, (5, 35))
+            # Position bonus text near turret (center horizontally, above the turret)
+            turret_x = SCREENSIZE[0] // 2
+            turret_y = SCREENSIZE[1] - GROUND_LEVEL
+            
+            # Use smaller font for bonus text with dynamic multiplier
+            multiplier_value = int(self.point_multiplier)
+            multiplier_text = self.small_font.render('{}X POINTS!'.format(multiplier_value), False, flash_color)
+            text_x = turret_x - multiplier_text.get_width() // 2  # Center text horizontally
+            text_y = turret_y - 60  # Position above turret, avoiding overlap
+            screen.blit(multiplier_text, (text_x, text_y))
             
             # Show timer with same effect but slightly different phase
             timer_seconds = self.multiplier_timer // 30
@@ -65,7 +72,9 @@ class McGame():
                 int(base_color[2] * timer_alpha)
             )
             timer_text = self.small_font.render('{}s'.format(timer_seconds), False, timer_color)
-            screen.blit(timer_text, (5, 50))
+            timer_x = turret_x - timer_text.get_width() // 2  # Center timer horizontally
+            timer_y = text_y + 15  # Position below the multiplier text
+            screen.blit(timer_text, (timer_x, timer_y))
         # TBC - draw the remaining ammo
 
     def update(self, missile_list, explosion_list, city_list):
@@ -145,8 +154,13 @@ class McGame():
         return self.player_score
     
     def activate_powerup(self, defense=None):
-        # Activate 2x point multiplier for 10 seconds
-        self.point_multiplier = 2.0
+        # Stack multiplier if already active, otherwise start at 2x
+        if self.point_multiplier > 1.0:
+            self.point_multiplier += 1.0  # Stack: 2x -> 3x -> 4x etc.
+        else:
+            self.point_multiplier = 2.0   # First powerup: 1x -> 2x
+        
+        # Reset timer to 10 seconds (extends duration)
         self.multiplier_timer = 300  # 10 seconds at 30 FPS
         
         # Turn turret orange when powerup is active

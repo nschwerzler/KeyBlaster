@@ -39,22 +39,22 @@ class Powerup():
         import __main__
         can_add_word = getattr(__main__, 'can_add_word', lambda x: True)
         
-        # RISKY words - intentionally difficult to type quickly
+        # RISKY words - intentionally difficult to type quickly (all 6+ characters)
         # Mix of uncommon words, tricky spelling, and awkward finger combinations
         risky_words = [
-            # Tricky finger combinations
-            "zyx", "qaz", "wsx", "xqz", "jkl", "mnb", "zxc",
-            # Challenging 4-5 letter words with difficult patterns
-            "lynx", "jinx", "quiz", "fizz", "fuzz", "jazz", "buzz", "whiz",
-            # Gen Alpha risky shorthand (tricky to type quickly)
-            "periodt", "whatev", "istg", "tbh", "irl", "rn", "nvm", "ttyl", "brb", "smh",
-            # 6-7 letter risky words
-            "zygote", "rhythm", "psycho", "sphinx", "fjords", "glyph", "nymph",
-            # Gen Alpha longer terms (risky because unfamiliar)
-            "snatched", "pressed", "cappin", "ghosted", "bussin", "slayed",
+            # 6-letter challenging words
+            "zygote", "rhythm", "psycho", "sphinx", "fjords", "glyphs", "nymphs",
+            "quartz", "frozen", "blazer", "oxygen", "wizard", "juxtap", "zephyr",
+            # Gen Alpha risky shorthand (extended to 6+ chars)
+            "periodt", "whatev", "ghosted", "cappin", "snatched", "pressed",
+            "bussin", "slayed", "lowkey", "highkey", "salty", "savage", "clutch",
+            # 7-letter risky words  
+            "rhyming", "psyched", "blazing", "oxygens", "wizards", "rhythms",
+            "lymphed", "nymphed", "glyphed", "zygotes", "fjorded", "sphinxed",
             # 8+ letter high-risk words (long = more time vulnerable)
-            "xylophone", "zephyr", "syzygy", "byzantine", "schizoid", "rhapsody",
-            "labyrinth", "synchrony", "toxicity", "xerophyte"
+            "xylophone", "byzantine", "schizoid", "rhapsody", "labyrinth", 
+            "synchrony", "toxicity", "xerophyte", "zygomata", "rhythmic",
+            "byzantine", "rhapsodic", "labyrinthine", "synchronize", "toxicology"
         ]
         
         # Try to find a word without conflicts
