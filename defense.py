@@ -11,12 +11,14 @@ class Defense():
         self.angle = 0                                       # angle of gun relative to vertical
         self.ammo = 30                                       # initial amount of ammo
         self.base_color = DEFENCE                            # normal gun colour
-        self.powerup_color = (255, 140, 0)                   # orange color for powerup mode
+        self.powerup_color = (255, 140, 0)                   # orange color for multiplier powerup mode
+        self.freeze_color = (0, 150, 255)                    # blue color for freeze powerup mode
         self.current_color = self.base_color                 # current color state
         self.gun_radius = 12                                 # radius of gun base circle (bigger)
         self.gun_size = 28                                   # length of gun barrel (bigger)
         self.destroyed = False                               # has the defense been destroyed
         self.powerup_active = False                          # tracks powerup state
+        self.freeze_active = False                           # tracks freeze state
         
         # New targeting system
         self.current_target = None                           # current target object (missile/powerup)
@@ -180,14 +182,30 @@ class Defense():
         self.ammo = ammo
     
     def activate_powerup(self):
-        """Activate powerup mode - turns turret orange with glow effect"""
+        """Activate multiplier powerup mode - turns turret orange with glow effect"""
         self.powerup_active = True
+        self.freeze_active = False
         self.current_color = self.powerup_color
     
     def deactivate_powerup(self):
         """Deactivate powerup mode - returns turret to normal color"""
         self.powerup_active = False
-        self.current_color = self.base_color
+        if not self.freeze_active:
+            self.current_color = self.base_color
+    
+    def activate_freeze(self):
+        """Activate freeze powerup mode - turns turret blue"""
+        self.freeze_active = True
+        self.powerup_active = False
+        self.current_color = self.freeze_color
+    
+    def deactivate_freeze(self):
+        """Deactivate freeze mode - returns turret to normal or powerup color"""
+        self.freeze_active = False
+        if self.powerup_active:
+            self.current_color = self.powerup_color
+        else:
+            self.current_color = self.base_color
     
     def aim_at_target(self, target):
         """Start aiming animation towards a target (missile or powerup)"""

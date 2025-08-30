@@ -3,13 +3,23 @@ import random
 from config import *
 
 class Powerup():
-    def __init__(self, start_side="left"):
+    def __init__(self, start_side="left", powerup_type="multiplier"):
         # Spaceship appearance - different from missiles
         self.size = 15
         self.width = 40
         self.height = 20
-        self.color = (255, 215, 0)  # Gold color for powerup
-        self.trail_color = (255, 255, 0)  # Yellow trail
+        self.powerup_type = powerup_type  # "multiplier" or "freeze"
+        
+        # Set colors based on powerup type
+        if powerup_type == "freeze":
+            self.color = (0, 150, 255)  # Blue color for freeze powerup
+            self.trail_color = (100, 200, 255)  # Light blue trail
+        elif powerup_type == "explosion":
+            self.color = (255, 50, 50)  # Red color for explosion powerup
+            self.trail_color = (255, 100, 100)  # Light red trail
+        else:  # multiplier (default)
+            self.color = (255, 215, 0)  # Gold color for multiplier powerup
+            self.trail_color = (255, 255, 0)  # Yellow trail
         
         # Horizontal movement across screen
         self.speed = 1.5  # Slightly slower so it's on screen longer (more tempting but riskier)
@@ -88,23 +98,59 @@ class Powerup():
     
     def draw(self, screen):
         if not self.destroyed:
-            # Draw spaceship body (different shape from missiles)
-            # Main body - elongated oval
-            pygame.draw.ellipse(screen, self.color, 
-                              (self.pos[0], self.pos[1], self.width, self.height))
+            if self.powerup_type == "explosion":
+                # Draw diamond/star shape for explosion powerup
+                center_x = self.pos[0] + self.width // 2
+                center_y = self.pos[1] + self.height // 2
+                
+                # Create diamond points
+                diamond_points = [
+                    (center_x, center_y - self.height // 2),  # Top point
+                    (center_x + self.width // 2, center_y),   # Right point
+                    (center_x, center_y + self.height // 2),  # Bottom point
+                    (center_x - self.width // 2, center_y)    # Left point
+                ]
+                
+                # Draw main diamond body
+                pygame.draw.polygon(screen, self.color, diamond_points)
+                
+                # Draw inner diamond for detail
+                inner_points = [
+                    (center_x, center_y - self.height // 4),  # Top point
+                    (center_x + self.width // 4, center_y),   # Right point
+                    (center_x, center_y + self.height // 4),  # Bottom point
+                    (center_x - self.width // 4, center_y)    # Left point
+                ]
+                inner_color = tuple(min(255, c + 50) for c in self.color)
+                pygame.draw.polygon(screen, inner_color, inner_points)
+                
+                # Flashing effect
+                if self.flash_timer % 20 < 10:  # Flash every 20 frames
+                    flash_color = (255, 255, 255)  # White flash
+                    pygame.draw.polygon(screen, flash_color, inner_points)
             
-            # Wings/side parts
-            wing_color = (200, 200, 0)  # Darker gold
-            pygame.draw.ellipse(screen, wing_color,
-                              (self.pos[0] - 5, self.pos[1] + 5, 10, 10))
-            pygame.draw.ellipse(screen, wing_color,
-                              (self.pos[0] + self.width - 5, self.pos[1] + 5, 10, 10))
-            
-            # Flashing effect
-            if self.flash_timer % 20 < 10:  # Flash every 20 frames
-                flash_color = (255, 255, 255)  # White flash
-                pygame.draw.ellipse(screen, flash_color,
-                                  (self.pos[0] + 5, self.pos[1] + 3, self.width - 10, self.height - 6))
+            else:
+                # Draw spaceship body (oval shape for multiplier/freeze)
+                # Main body - elongated oval
+                pygame.draw.ellipse(screen, self.color, 
+                                  (self.pos[0], self.pos[1], self.width, self.height))
+                
+                # Wings/side parts (different colors based on type)
+                if self.powerup_type == "freeze":
+                    wing_color = tuple(max(0, c - 50) for c in self.color)  # Darker blue
+                else:  # multiplier
+                    wing_color = (200, 200, 0)  # Darker gold
+                    
+                pygame.draw.ellipse(screen, wing_color,
+                                  (self.pos[0] - 5, self.pos[1] + 5, 10, 10))
+                pygame.draw.ellipse(screen, wing_color,
+                                  (self.pos[0] + self.width - 5, self.pos[1] + 5, 10, 10))
+                
+                # Flashing effect
+                if self.flash_timer % 20 < 10:  # Flash every 20 frames
+                    flash_color = (255, 255, 255)  # White flash
+                    pygame.draw.ellipse(screen, flash_color,
+                                      (self.pos[0] + 5, self.pos[1] + 3, self.width - 10, self.height - 6))
             
             # Draw trail
             trail_length = 30

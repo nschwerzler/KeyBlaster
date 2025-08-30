@@ -19,6 +19,7 @@ from powerup import Powerup
 from text import InputBox
 from replay import start_recording, stop_recording, get_recorder, ReplayPlayer
 from city_bonus import CityBonus
+from mega_explosion import MegaExplosion
 
 
 # Initialize game engine, screen and clock
@@ -110,6 +111,8 @@ def main():
     powerup_list = []
     # list of city bonus animations
     city_bonus_list = []
+    # list of mega explosions
+    mega_explosion_list = []
     # TBC - generate the cities
     # need to be replaced with working cities
     city_list = []
@@ -336,13 +339,15 @@ def main():
         for city in city_list:
             city.draw(screen)
         
-        # --- interceptor turret
+        # --- interceptor turret (always updates, even when frozen)
         defense.update()
         defense.draw(screen)
         
         # --- missiles
         for missile in missile_list[:]:
-            missile.update(explosion_list)
+            # Only update missiles if not frozen
+            if not mcgame.is_frozen:
+                missile.update(explosion_list)
             missile.draw(screen)
             if missile.detonated:
                 # Remove word prefix from tracking
@@ -352,7 +357,12 @@ def main():
         
         # --- powerups
         for powerup in powerup_list[:]:
-            if not powerup.update():
+            # Only update powerups if not frozen
+            should_remove = False
+            if not mcgame.is_frozen:
+                should_remove = not powerup.update()
+            
+            if should_remove:
                 # Remove word prefix from tracking
                 if hasattr(powerup, 'label') and powerup.label:
                     remove_word_prefix(powerup.label)
@@ -360,7 +370,7 @@ def main():
             else:
                 powerup.draw(screen)
         
-        # --- city bonus animations
+        # --- city bonus animations (always update, even when frozen)
         for city_bonus in city_bonus_list[:]:
             if not city_bonus.update():
                 city_bonus_list.remove(city_bonus)
@@ -369,10 +379,32 @@ def main():
         
         # --- explosions
         for explosion in explosion_list[:]:
-            explosion.update()
+            # Only update explosions if not frozen
+            if not mcgame.is_frozen:
+                explosion.update()
             explosion.draw(screen)
             if explosion.complete:
                 explosion_list.remove(explosion)
+        
+        # --- mega explosions
+        for mega_explosion in mega_explosion_list[:]:
+            if not mcgame.is_frozen:
+                mega_explosion.update()
+                
+                # Check for missiles in blast radius
+                for missile in missile_list[:]:
+                    missile_pos = missile.pos if hasattr(missile, 'pos') else (0, 0)
+                    if mega_explosion.is_in_blast_radius(missile_pos):
+                        # Add score for destroyed missile
+                        mcgame.add_score(250)  # Bonus points for explosion kills
+                        # Remove word prefix from tracking
+                        if hasattr(missile, 'label') and missile.label:
+                            remove_word_prefix(missile.label)
+                        missile_list.remove(missile)
+                        
+            mega_explosion.draw(screen)
+            if mega_explosion.complete:
+                mega_explosion_list.remove(mega_explosion)
 
         # --- Draw the interface 
         mcgame.draw(screen, defense)
@@ -385,7 +417,8 @@ def main():
             # Spawn powerup occasionally
             if mcgame.should_spawn_powerup():
                 side = random.choice(["left", "right"])
-                powerup_list.append(Powerup(side))
+                powerup_type = random.choice(["multiplier", "freeze", "explosion"])
+                powerup_list.append(Powerup(side, powerup_type))
             
             current_game_state = mcgame.update(missile_list, explosion_list, city_list)
             
@@ -433,7 +466,13 @@ def main():
                         # Add explosion effect for powerup destruction
                         explosion_list.append(Explosion(powerup_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
                         
-                        mcgame.activate_powerup(defense)
+                        # Activate powerup based on its type
+                        powerup_type = getattr(target_obj, 'powerup_type', 'multiplier')
+                        result = mcgame.activate_powerup(defense, powerup_type, powerup_pos)
+                        
+                        # Handle explosion powerup
+                        if result and result.get('create_mega_explosion'):
+                            mega_explosion_list.append(MegaExplosion(result['position']))
                         mcgame.add_score(target_obj.destroy())
                         # Remove word prefix from tracking
                         if hasattr(target_obj, 'label') and target_obj.label:

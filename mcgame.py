@@ -25,6 +25,10 @@ class McGame():
         self.powerup_spawn_timer = 0 # When to spawn next powerup
         self.flash_timer = 0         # For flashing effect
         
+        # Freeze system
+        self.freeze_timer = 0        # How long freeze lasts
+        self.is_frozen = False       # Whether game elements are frozen
+        
         # Create smaller font for bonus text
         self.small_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 10)
 
@@ -37,6 +41,46 @@ class McGame():
         screen.blit(self.high_score_text, (self.high_score_text_pos, 10))
         ammo_text = game_font.render('AMMO: {}'.format(defense.get_ammo()), False, INTERFACE_SEC)
         screen.blit(ammo_text, (SCREENSIZE[0] // 2 - (ammo_text.get_width() // 2), 10))
+        
+        # Position for powerup effects near turret (center horizontally, above the turret)
+        turret_x = SCREENSIZE[0] // 2
+        turret_y = SCREENSIZE[1] - GROUND_LEVEL
+        effect_y_offset = -60  # Start position above turret
+        
+        # Show freeze status if active
+        if self.is_frozen:
+            # Create pulsing alpha effect based on flash timer
+            flash_phase = self.flash_timer / 60.0  # 0 to 1 over 2 seconds
+            alpha_multiplier = 0.7 + 0.3 * abs(1 - 2 * flash_phase)  # Smooth pulse between 0.7 and 1.0
+            
+            # Calculate flashing blue color
+            base_color = (0, 150, 255)  # Blue
+            flash_color = (
+                int(base_color[0] * alpha_multiplier),
+                int(base_color[1] * alpha_multiplier), 
+                int(base_color[2] * alpha_multiplier)
+            )
+            
+            # Show freeze text
+            freeze_text = self.small_font.render('FREEZE!', False, flash_color)
+            text_x = turret_x - freeze_text.get_width() // 2  # Center text horizontally
+            text_y = turret_y + effect_y_offset
+            screen.blit(freeze_text, (text_x, text_y))
+            
+            # Show freeze timer
+            timer_seconds = self.freeze_timer // 30
+            timer_alpha = 0.8 + 0.2 * abs(1 - 2 * ((self.flash_timer + 15) % 60) / 60.0)
+            timer_color = (
+                int(base_color[0] * timer_alpha),
+                int(base_color[1] * timer_alpha),
+                int(base_color[2] * timer_alpha)
+            )
+            timer_text = self.small_font.render('{}s'.format(timer_seconds), False, timer_color)
+            timer_x = turret_x - timer_text.get_width() // 2  # Center timer horizontally
+            timer_y = text_y + 15  # Position below the freeze text
+            screen.blit(timer_text, (timer_x, timer_y))
+            
+            effect_y_offset -= 35  # Adjust position for multiplier display if both are active
         
         # Show multiplier status if active with cool flashing effect
         if self.point_multiplier > 1.0:
@@ -52,15 +96,11 @@ class McGame():
                 int(min(255, base_color[2] + 50 * (1 - alpha_multiplier)))  # Add blue tint when dimmed
             )
             
-            # Position bonus text near turret (center horizontally, above the turret)
-            turret_x = SCREENSIZE[0] // 2
-            turret_y = SCREENSIZE[1] - GROUND_LEVEL
-            
             # Use smaller font for bonus text with dynamic multiplier
             multiplier_value = int(self.point_multiplier)
             multiplier_text = self.small_font.render('{}X POINTS!'.format(multiplier_value), False, flash_color)
             text_x = turret_x - multiplier_text.get_width() // 2  # Center text horizontally
-            text_y = turret_y - 60  # Position above turret, avoiding overlap
+            text_y = turret_y + effect_y_offset  # Position above turret, accounting for freeze display
             screen.blit(multiplier_text, (text_x, text_y))
             
             # Show timer with same effect but slightly different phase
@@ -153,19 +193,37 @@ class McGame():
     def get_player_score(self):
         return self.player_score
     
-    def activate_powerup(self, defense=None):
-        # Stack multiplier if already active, otherwise start at 2x
-        if self.point_multiplier > 1.0:
-            self.point_multiplier += 1.0  # Stack: 2x -> 3x -> 4x etc.
-        else:
-            self.point_multiplier = 2.0   # First powerup: 1x -> 2x
-        
-        # Reset timer to 10 seconds (extends duration)
-        self.multiplier_timer = 300  # 10 seconds at 30 FPS
-        
-        # Turn turret orange when powerup is active
-        if defense is not None:
-            defense.activate_powerup()
+    def activate_powerup(self, defense=None, powerup_type="multiplier", powerup_pos=None):
+        if powerup_type == "freeze":
+            # Activate freeze effect for 4 seconds
+            self.freeze_timer = 120  # 4 seconds at 30 FPS
+            self.is_frozen = True
+            
+            # Turn turret blue when freeze is active
+            if defense is not None:
+                defense.activate_freeze()
+                
+        elif powerup_type == "explosion":
+            # Create massive explosion at powerup position
+            # The explosion effect is handled in the main game loop
+            # This method just returns the signal to create the explosion
+            return {"create_mega_explosion": True, "position": powerup_pos}
+            
+        else:  # multiplier powerup
+            # Stack multiplier if already active, otherwise start at 2x
+            if self.point_multiplier > 1.0:
+                self.point_multiplier += 1.0  # Stack: 2x -> 3x -> 4x etc.
+            else:
+                self.point_multiplier = 2.0   # First powerup: 1x -> 2x
+            
+            # Reset timer to 10 seconds (extends duration)
+            self.multiplier_timer = 300  # 10 seconds at 30 FPS
+            
+            # Turn turret orange when multiplier powerup is active
+            if defense is not None:
+                defense.activate_powerup()
+                
+        return None
         
     def update_powerup_system(self, defense=None):
         # Update multiplier timer
@@ -173,9 +231,21 @@ class McGame():
             self.multiplier_timer -= 1
             if self.multiplier_timer <= 0:
                 self.point_multiplier = 1.0  # Reset to normal
-                # Reset turret color when powerup expires
-                if defense is not None:
+                # Reset turret color when powerup expires (only if not frozen)
+                if defense is not None and not self.is_frozen:
                     defense.deactivate_powerup()
+        
+        # Update freeze timer
+        if self.freeze_timer > 0:
+            self.freeze_timer -= 1
+            if self.freeze_timer <= 0:
+                self.is_frozen = False
+                # Reset turret color when freeze expires (unless multiplier is active)
+                if defense is not None:
+                    if self.point_multiplier > 1.0:
+                        defense.activate_powerup()  # Return to multiplier color
+                    else:
+                        defense.deactivate_freeze()  # Return to normal
         
         # Update flash timer for cool effects
         self.flash_timer += 1
