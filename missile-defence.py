@@ -90,14 +90,7 @@ def main():
     # Start replay recording
     recorder = start_recording()
     
-    # Register exit handler to save replay on any program termination
-    def save_replay_on_exit():
-        if recorder and recorder.recording:
-            recorder.record_event("program_exit", {"reason": "unexpected_termination"})
-            filename = recorder.save()
-            print(f"Replay auto-saved on exit: {filename}")
-    
-    atexit.register(save_replay_on_exit)
+    # No auto-save on exit - only save on level completion
     
     # load high-score file
     high_scores = load_scores()  # Now uses AppData directory by default
@@ -140,7 +133,7 @@ def main():
     
     # Auto-save timer for replays
     last_auto_save = time.time()
-    auto_save_interval = 30  # Auto-save every 30 seconds
+    auto_save_interval = 120  # Auto-save every 2 minutes instead of 30 seconds
     
     # Track level completion to prevent duplicate saves
     last_completed_level = 0
@@ -149,10 +142,9 @@ def main():
         # write event handlers here
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                # Auto-save replay before exiting
+                # Stop recording but don't auto-save on exit
                 if recorder:
-                    filename = stop_recording()
-                    print(f"Replay auto-saved as: {filename}")
+                    stop_recording()
                 pygame.quit()
                 sys.exit(0)
             if event.type == KEYDOWN:
@@ -214,44 +206,57 @@ def main():
                         # Add character to typed sequence
                         typed_sequence += ch
                         
-                        # Check for complete word matches (simple exact substring matching)
+                        # Check for complete word matches - find ALL instances of the same word
                         completed_targets = []
                         words_found = []
                         sequence_lower = typed_sequence.lower()
                         
-                        # Collect all words on screen and check for exact matches
-                        all_words = []
+                        # First priority: Find ALL powerups with matching words
+                        powerup_matches = []
                         for p in powerup_list:
                             if getattr(p, 'label', None):
                                 word_lower = str(p.label).lower()
-                                if word_lower == sequence_lower:  # Exact match only
-                                    completed_targets.append(('powerup', p))
-                                    words_found.append(word_lower)
-                                    if recorder:
-                                        recorder.record_word_match(word_lower, 'powerup', True)
-                                    break  # Only one exact match needed
+                                if word_lower == sequence_lower:  # Exact match
+                                    powerup_matches.append(('powerup', p))
                         
-                        if not completed_targets:  # Only check missiles if no powerup match
+                        # If we found powerup matches, use all of them
+                        if powerup_matches:
+                            completed_targets.extend(powerup_matches)
+                            words_found.append(sequence_lower)
+                            if recorder:
+                                recorder.record_word_match(sequence_lower, 'powerup', True)
+                        else:
+                            # Second priority: Find ALL missiles with matching words
+                            missile_matches = []
                             for m in missile_list:
                                 if getattr(m, 'label', None):
                                     word_lower = str(m.label).lower()
-                                    if word_lower == sequence_lower:  # Exact match only
-                                        completed_targets.append(('missile', m))
-                                        words_found.append(word_lower)
-                                        if recorder:
-                                            recorder.record_word_match(word_lower, 'missile', True)
-                                        break  # Only one exact match needed
+                                    if word_lower == sequence_lower:  # Exact match
+                                        missile_matches.append(('missile', m))
+                            
+                            # Use all missile matches
+                            if missile_matches:
+                                completed_targets.extend(missile_matches)
+                                words_found.append(sequence_lower)
+                                if recorder:
+                                    recorder.record_word_match(sequence_lower, 'missile', True)
                         
                         # Process completed words
                         if completed_targets:
-                            for target_type, target_obj in completed_targets:
-                                if pending_destruction is None:
-                                    # Start destruction immediately
-                                    defense.aim_at_target(target_obj)
-                                    pending_destruction = (target_type, target_obj)
-                                    destruction_timer = 0
-                                else:
-                                    # Queue for later destruction
+                            # If we have multiple targets, start with the first and queue the rest
+                            if pending_destruction is None and completed_targets:
+                                # Start destruction of first target immediately
+                                first_target_type, first_target_obj = completed_targets[0]
+                                defense.aim_at_target(first_target_obj)
+                                pending_destruction = (first_target_type, first_target_obj)
+                                destruction_timer = 0
+                                
+                                # Queue the remaining targets
+                                for target_type, target_obj in completed_targets[1:]:
+                                    destruction_queue.append((target_type, target_obj))
+                            else:
+                                # Turret is busy, queue all targets
+                                for target_type, target_obj in completed_targets:
                                     destruction_queue.append((target_type, target_obj))
                             
                             # Clear the typed sequence since we found and processed matches
@@ -326,17 +331,17 @@ def main():
 
         # Game logic and draws
         
-        # Record game state periodically for replay verification
-        if recorder and pygame.time.get_ticks() % 1000 < 50:  # Record every ~1 second
+        # Record game state periodically for replay verification (reduced frequency)
+        if recorder and pygame.time.get_ticks() % 5000 < 50:  # Record every ~5 seconds instead of 1 second
             current_level = getattr(mcgame, 'difficulty', 1) if 'mcgame' in locals() else 1
             current_score = getattr(mcgame, 'player_score', 0) if 'mcgame' in locals() else 0
             recorder.record_game_state(missile_list, powerup_list, typed_sequence, current_level, current_score)
         
-        # Auto-save replay periodically
-        current_time = time.time()
-        if recorder and (current_time - last_auto_save) >= auto_save_interval:
-            recorder.save()
-            last_auto_save = current_time
+        # Auto-save replay periodically (disabled for performance - only save at level completion and game over)
+        # current_time = time.time()
+        # if recorder and (current_time - last_auto_save) >= auto_save_interval:
+        #     recorder.save()
+        #     last_auto_save = current_time
         
         # --- cities
         for city in city_list:
@@ -524,10 +529,9 @@ def main():
 
         # load message for Game Over and proceed to high-score / menu
         if current_game_state == GAME_STATE_OVER:
-            # Auto-save replay when game ends
+            # Record game over event (but don't auto-save here)
             if recorder:
                 recorder.record_event("game_over", {"final_score": getattr(mcgame, 'player_score', 0)})
-                filename = recorder.save()
             mcgame.game_over(screen)
 
         # load a message and set new game values for start new level

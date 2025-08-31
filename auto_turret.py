@@ -10,7 +10,7 @@ class AutoTurret():
         self.pos = pos  # Position where the turret was spawned
         self.lifetime = -1  # Infinite lifetime - lasts entire level
         self.shoot_timer = 0
-        self.shoot_interval = 15  # Shoot every 0.5 seconds (much faster!)
+        self.shoot_interval = 30  # Shoot every 1 second (balanced speed)
         self.destroyed = False
         self.barrel_angle = 0  # Current barrel angle for aiming
         self.target_angle = 0  # Target angle to rotate towards
