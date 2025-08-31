@@ -566,9 +566,9 @@ def main():
         # Update the display
         pygame.display.update()
 
-        # hold for few seconds before starting new level
+        # hold for few seconds before starting new level (extra time to read inspirational text)
         if current_game_state == GAME_STATE_NEW_LEVEL:
-            time.sleep(3)
+            time.sleep(4)  # Increased from 3 to 4 seconds for better readability
             current_game_state = GAME_STATE_RUNNING
         
         # hold for few seconds before proceeding to high-score or back to menu or game over splash

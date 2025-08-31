@@ -38,7 +38,7 @@ class Powerup():
         self.destroyed = False
         self.points = 1000  # Base points for powerup
         
-        # Hard word selection
+        # Hard word selection (minimum 7 characters)
         self.label = self._choose_hard_word()
         
         # Visual effects
@@ -49,22 +49,24 @@ class Powerup():
         import __main__
         can_add_word = getattr(__main__, 'can_add_word', lambda x: True)
         
-        # RISKY words - intentionally difficult to type quickly (all 6+ characters)
+        # RISKY words - intentionally difficult to type quickly (all 7+ characters minimum)
         # Mix of uncommon words, tricky spelling, and awkward finger combinations
         risky_words = [
-            # 6-letter challenging words
-            "zygote", "rhythm", "psycho", "sphinx", "fjords", "glyphs", "nymphs",
-            "quartz", "frozen", "blazer", "oxygen", "wizard", "juxtap", "zephyr",
-            # Gen Alpha risky shorthand (extended to 6+ chars)
-            "periodt", "whatev", "ghosted", "cappin", "snatched", "pressed",
-            "bussin", "slayed", "lowkey", "highkey", "salty", "savage", "clutch",
-            # 7-letter risky words  
+            # 7-letter challenging words  
             "rhyming", "psyched", "blazing", "oxygens", "wizards", "rhythms",
             "lymphed", "nymphed", "glyphed", "zygotes", "fjorded", "sphinxed",
+            "cryptic", "jackets", "waxiest", "quizzed", "zithers", "fizzled",
+            "puzzled", "jazzing", "buzzard", "grizzly", "pretzels", "frenzied",
+            # Gen Alpha risky shorthand (7+ chars only)
+            "periodt", "ghosted", "cappin", "snatched", "pressed", "lowkeys", "highkey",
+            "slaying", "savaged", "clutched", "bushing", "vibing", "flexing",
             # 8+ letter high-risk words (long = more time vulnerable)
             "xylophone", "byzantine", "schizoid", "rhapsody", "labyrinth", 
             "synchrony", "toxicity", "xerophyte", "zygomata", "rhythmic",
-            "byzantine", "rhapsodic", "labyrinthine", "synchronize", "toxicology"
+            "rhapsodic", "labyrinthine", "synchronize", "toxicology", "mystique",
+            "adjacent", "quixotic", "buzzword", "zestiest", "blizzard", "jazziest",
+            "frazzled", "grizzled", "dazzling", "sizzling", "puzzling", "fizzling",
+            "muzzling", "guzzling", "nuzzling", "drizzled", "crizzled", "frizzled"
         ]
         
         # Try to find a word without conflicts

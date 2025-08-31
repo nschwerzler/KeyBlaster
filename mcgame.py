@@ -157,16 +157,62 @@ class McGame():
         self.missile_interval = 1
         defense.set_ammo(30)
 
+        # Inspirational quotes
+        inspirational_quotes = [
+            "Hard things get easier every time you try.",
+            "Winners are just kids who didn't quit.",
+            "Being brave doesn't mean you aren't scared—it means you try anyway.",
+            "Mistakes are proof you are trying.",
+            "A challenge is not a wall—it's a ladder.",
+            "Believe in yourself first, and others will too.",
+            "The strongest people smile even when things are hard.",
+            "I believe there comes a time, when everything just falls in line, we live and learn from our mistakes, the deepest cuts are healed by FAITH!",
+            "The difference between winners and losers is that winners get back up after getting kicked in the teeth."
+        ]
 
         # display prompt for next level and give short pause
         new_level = game_font.render('NEW INBOUND MISSILES DETECTED', False, INTERFACE_SEC)
         get_ready = game_font.render('GET READY', False, INTERFACE_SEC)
+        
+        # Choose a random inspirational quote
+        selected_quote = random.choice(inspirational_quotes)
+        
+        # Create larger, readable font for the quote
+        quote_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 12)  # Much bigger font for readability
+        
+        # Split quote into multiple lines if too long to fit on screen
+        max_chars_per_line = 45  # Reduced for larger font to fit screen width
+        quote_lines = []
+        words = selected_quote.split()
+        current_line = ""
+        
+        for word in words:
+            if len(current_line + " " + word) <= max_chars_per_line:
+                current_line += (" " + word) if current_line else word
+            else:
+                if current_line:
+                    quote_lines.append(current_line)
+                current_line = word
+        if current_line:
+            quote_lines.append(current_line)
+        
+        # Position elements to avoid overlap - move main text higher to make room
         new_level_pos = (SCREENSIZE[0] // 2 - (new_level.get_width() // 2),
-                            SCREENSIZE[1] // 2 - (new_level.get_height() // 2))
+                            SCREENSIZE[1] // 2 - (new_level.get_height() // 2) - 60)  # Moved up more
         get_ready_pos = (SCREENSIZE[0] // 2 - (get_ready.get_width() // 2),
-                            SCREENSIZE[1] // 2 - (get_ready.get_height() // 2) + new_level.get_height())
+                            new_level_pos[1] + new_level.get_height() + 15)  # More spacing
+        
+        # Draw main level text
         screen.blit(new_level, new_level_pos)
         screen.blit(get_ready, get_ready_pos)
+        
+        # Draw inspirational quote below the main text with generous spacing
+        quote_start_y = get_ready_pos[1] + get_ready.get_height() + 40  # More spacing from main text
+        for i, line in enumerate(quote_lines):
+            quote_surface = quote_font.render(line, False, (255, 215, 0))  # Gold color for better visibility
+            quote_pos = (SCREENSIZE[0] // 2 - (quote_surface.get_width() // 2),
+                        quote_start_y + i * (quote_surface.get_height() + 5))  # More line spacing
+            screen.blit(quote_surface, quote_pos)
     
     # game over - all cities destroyed
     def game_over(self, screen):
@@ -197,8 +243,8 @@ class McGame():
     
     def activate_powerup(self, defense=None, powerup_type="multiplier", powerup_pos=None):
         if powerup_type == "freeze":
-            # Activate freeze effect for 4 seconds
-            self.freeze_timer = 120  # 4 seconds at 30 FPS
+            # Activate freeze effect for 6 seconds
+            self.freeze_timer = 180  # 6 seconds at 30 FPS (increased by 2 seconds)
             self.is_frozen = True
             
             # Turn turret blue when freeze is active

@@ -67,11 +67,11 @@ class Missile():
                             break
                 
                 if len(typed_portion) > 0:
-                    # Create larger font for typed portion
-                    large_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 20)  # Bigger font for typed letters
+                    # Create much larger font for typed portion - make it really stand out!
+                    large_font = pygame.font.Font('data/fnt/PressStart2P-Regular.ttf', 28)  # Much bigger font for typed letters
                     
-                    # Show typed chars in bright green with larger font, remaining chars dimmed
-                    typed_surface = large_font.render(typed_portion, False, (0, 255, 100))  # Bright green for typed
+                    # Show typed chars in bright glowing green with larger font, remaining chars dimmed
+                    typed_surface = large_font.render(typed_portion, False, (50, 255, 50))  # Bright glowing green for typed
                     remaining = full_label[len(typed_portion):]
                     remaining_surface = game_font.render(remaining, False, (120, 120, 120))  # Dimmed gray for remaining
                     
@@ -79,13 +79,20 @@ class Missile():
                     total_width = typed_surface.get_width() + remaining_surface.get_width()
                     start_x = self.pos[0] - (total_width // 2)
                     
-                    # Add background highlight for typed portion
-                    typed_bg = pygame.Surface((typed_surface.get_width() + 4, typed_surface.get_height() + 2))
-                    typed_bg.fill((0, 50, 0))  # Dark green background
-                    screen.blit(typed_bg, (start_x - 2, self.pos[1] - 23))
+                    # Add larger, more prominent background highlight for typed portion with glow effect
+                    bg_width = typed_surface.get_width() + 8
+                    bg_height = typed_surface.get_height() + 6
+                    typed_bg = pygame.Surface((bg_width, bg_height))
+                    typed_bg.fill((0, 80, 20))  # Darker green background for contrast
+                    screen.blit(typed_bg, (start_x - 4, self.pos[1] - 30))
                     
-                    # Draw typed portion with larger font
-                    screen.blit(typed_surface, (start_x, self.pos[1] - 22))
+                    # Add outer glow effect
+                    glow_bg = pygame.Surface((bg_width + 4, bg_height + 4))
+                    glow_bg.fill((0, 40, 10))  # Even darker green for outer glow
+                    screen.blit(glow_bg, (start_x - 6, self.pos[1] - 32))
+                    
+                    # Draw typed portion with much larger font
+                    screen.blit(typed_surface, (start_x, self.pos[1] - 28))
                     # Draw remaining portion aligned to baseline
                     screen.blit(remaining_surface, (start_x + typed_surface.get_width(), self.pos[1] - 20))
                 else:
