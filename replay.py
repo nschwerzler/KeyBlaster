@@ -116,7 +116,7 @@ class ReplayRecorder:
         try:
             with open(self.filename, 'w') as f:
                 json.dump(replay_data, f, indent=2)
-            print(f"Replay saved to {self.filename}")
+            # Removed duplicate print - main game handles save messages
             return self.filename
         except Exception as e:
             print(f"Failed to save replay: {e}")

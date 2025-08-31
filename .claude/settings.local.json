@@ -11,7 +11,8 @@
       "Read(C:\\Users\\nschw\\AppData\\Roaming\\KeyBlaster\\Replays/**)",
       "Read(C:\\Users\\nschw\\AppData\\Roaming\\KeyBlaster\\Replays/**)",
       "Bash(git rm:*)",
-      "Bash(dir)"
+      "Bash(dir)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

@@ -441,7 +441,7 @@ def main():
                 powerup_type = random.choice(["multiplier", "freeze", "explosion", "turret"])
                 powerup_list.append(Powerup(side, powerup_type))
             
-            current_game_state = mcgame.update(missile_list, explosion_list, city_list)
+            current_game_state = mcgame.update(missile_list, explosion_list, city_list, mega_explosion_list)
             
             # Track word prefixes for newly created missiles
             for missile in missile_list:

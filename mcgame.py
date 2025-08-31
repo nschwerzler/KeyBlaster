@@ -117,7 +117,7 @@ class McGame():
             screen.blit(timer_text, (timer_x, timer_y))
         # TBC - draw the remaining ammo
 
-    def update(self, missile_list, explosion_list, city_list):
+    def update(self, missile_list, explosion_list, city_list, mega_explosion_list=None):
         # generate incoming missiles
         if self.missile_frequency % self.missile_interval == 0 and self.missile_count < self.max_missile_count:
             # pick a key label for this missile (home row weighted)
@@ -139,8 +139,9 @@ class McGame():
             return GAME_STATE_OVER
 
         # start next level - check if all threats are cleared including mega explosions
-        import __main__
-        mega_explosion_list = getattr(__main__, 'mega_explosion_list', [])
+        if mega_explosion_list is None:
+            mega_explosion_list = []
+        
         if missile_list == [] and explosion_list == [] and mega_explosion_list == []:
             return GAME_STATE_NEW_LEVEL
 
