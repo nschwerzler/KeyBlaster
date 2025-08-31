@@ -20,6 +20,7 @@ from text import InputBox
 from replay import start_recording, stop_recording, get_recorder, ReplayPlayer
 from city_bonus import CityBonus
 from mega_explosion import MegaExplosion
+from auto_turret import AutoTurret, PoisonGrenade
 
 
 # Initialize game engine, screen and clock
@@ -113,6 +114,8 @@ def main():
     city_bonus_list = []
     # list of mega explosions
     mega_explosion_list = []
+    # list of auto turrets
+    auto_turret_list = []
     # TBC - generate the cities
     # need to be replaced with working cities
     city_list = []
@@ -405,6 +408,19 @@ def main():
             mega_explosion.draw(screen)
             if mega_explosion.complete:
                 mega_explosion_list.remove(mega_explosion)
+        
+        # --- auto turrets
+        for auto_turret in auto_turret_list[:]:
+            # Only update turrets if not frozen
+            if not mcgame.is_frozen:
+                # Update turret and check if it should be removed
+                if not auto_turret.update(missile_list, explosion_list):
+                    auto_turret_list.remove(auto_turret)
+                    continue
+            
+            # Always draw active turrets
+            auto_turret.draw(screen)
+        
 
         # --- Draw the interface 
         mcgame.draw(screen, defense)
@@ -417,7 +433,7 @@ def main():
             # Spawn powerup occasionally
             if mcgame.should_spawn_powerup():
                 side = random.choice(["left", "right"])
-                powerup_type = random.choice(["multiplier", "freeze", "explosion"])
+                powerup_type = random.choice(["multiplier", "freeze", "explosion", "turret"])
                 powerup_list.append(Powerup(side, powerup_type))
             
             current_game_state = mcgame.update(missile_list, explosion_list, city_list)
@@ -473,6 +489,11 @@ def main():
                         # Handle explosion powerup
                         if result and result.get('create_mega_explosion'):
                             mega_explosion_list.append(MegaExplosion(result['position']))
+                        
+                        # Handle turret powerup
+                        elif result and result.get('create_auto_turret'):
+                            auto_turret_list.append(AutoTurret(result['position']))
+                        
                         mcgame.add_score(target_obj.destroy())
                         # Remove word prefix from tracking
                         if hasattr(target_obj, 'label') and target_obj.label:
@@ -553,6 +574,9 @@ def main():
             pending_destruction = None
             destruction_timer = 0
             destruction_queue.clear()
+            # Clear auto turrets at level transition (they last entire level, so clear for new level)
+            auto_turret_list.clear()
+            
             # Clean up and re-track all existing powerup word prefixes for the new level
             for powerup in powerup_list:
                 if hasattr(powerup, 'label') and powerup.label:
@@ -623,6 +647,7 @@ def main():
             missile_list.clear()
             explosion_list.clear()
             powerup_list.clear()
+            auto_turret_list.clear()
             # Reset word prefix tracking
             active_word_prefixes.clear()
             # Reset delayed destruction system

@@ -17,6 +17,9 @@ class Powerup():
         elif powerup_type == "explosion":
             self.color = (255, 50, 50)  # Red color for explosion powerup
             self.trail_color = (255, 100, 100)  # Light red trail
+        elif powerup_type == "turret":
+            self.color = (50, 200, 50)  # Green color for turret powerup
+            self.trail_color = (100, 255, 100)  # Light green trail
         else:  # multiplier (default)
             self.color = (255, 215, 0)  # Gold color for multiplier powerup
             self.trail_color = (255, 255, 0)  # Yellow trail
@@ -130,6 +133,28 @@ class Powerup():
                 if self.flash_timer % 20 < 10:  # Flash every 20 frames
                     flash_color = (255, 255, 255)  # White flash
                     pygame.draw.polygon(screen, flash_color, inner_points)
+            
+            elif self.powerup_type == "turret":
+                # Draw turret-like shape for turret powerup
+                center_x = self.pos[0] + self.width // 2
+                center_y = self.pos[1] + self.height // 2
+                
+                # Draw main turret base (rectangle)
+                base_rect = (self.pos[0] + 5, self.pos[1] + 8, self.width - 10, self.height - 8)
+                pygame.draw.rect(screen, self.color, base_rect)
+                
+                # Draw turret barrel (smaller rectangle on top)
+                barrel_rect = (center_x - 8, self.pos[1] + 2, 16, 8)
+                pygame.draw.rect(screen, tuple(min(255, c + 30) for c in self.color), barrel_rect)
+                
+                # Draw targeting scope (small circle)
+                pygame.draw.circle(screen, (255, 255, 255), (center_x, center_y - 5), 3)
+                pygame.draw.circle(screen, self.color, (center_x, center_y - 5), 2)
+                
+                # Flashing effect
+                if self.flash_timer % 20 < 10:  # Flash every 20 frames
+                    flash_color = (255, 255, 255)  # White flash
+                    pygame.draw.rect(screen, flash_color, barrel_rect)
             
             else:
                 # Draw spaceship body (oval shape for multiplier/freeze)

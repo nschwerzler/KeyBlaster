@@ -257,6 +257,12 @@ class McGame():
             # This method just returns the signal to create the explosion
             return {"create_mega_explosion": True, "position": powerup_pos}
             
+        elif powerup_type == "turret":
+            # Create auto turret at powerup position
+            # The turret effect is handled in the main game loop
+            # This method just returns the signal to create the turret
+            return {"create_auto_turret": True, "position": powerup_pos}
+            
         else:  # multiplier powerup
             # Stack multiplier if already active, otherwise start at 2x
             if self.point_multiplier > 1.0:
