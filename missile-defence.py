@@ -83,6 +83,43 @@ def remove_word_prefix(word):
     if prefix and prefix in active_word_prefixes:
         active_word_prefixes.discard(prefix)
 
+def calculate_dynamic_fps(missile_list, powerup_list, base_fps=30):
+    """Calculate dynamic FPS based on number of letters on screen"""
+    # Count total letters/words on screen
+    total_words = 0
+    
+    # Count missiles with labels
+    for missile in missile_list:
+        if hasattr(missile, 'label') and missile.label:
+            total_words += 1
+    
+    # Count powerups with labels
+    for powerup in powerup_list:
+        if hasattr(powerup, 'label') and powerup.label:
+            total_words += 1
+    
+    # Dynamic speed scaling based on word count
+    if total_words <= 5:
+        # Normal speed for low word count
+        speed_multiplier = 1.0
+    elif total_words <= 10:
+        # Slight slowdown for medium word count
+        speed_multiplier = 0.85
+    elif total_words <= 15:
+        # More slowdown for high word count  
+        speed_multiplier = 0.7
+    elif total_words <= 20:
+        # Significant slowdown for very high word count
+        speed_multiplier = 0.6
+    else:
+        # Maximum slowdown for extreme word count
+        speed_multiplier = 0.5
+    
+    # Calculate target FPS (never go below 15 FPS for playability)
+    target_fps = max(15, int(base_fps * speed_multiplier))
+    
+    return target_fps
+
 
 def main():
     global current_game_state, typed_sequence, active_word_prefixes, pending_destruction, destruction_timer, destruction_queue, turbo_timer, last_completed_level
@@ -676,9 +713,12 @@ def main():
             typed_sequence = ""  # Reset typed sequence
             current_game_state = GAME_STATE_RUNNING
 
-        # run at pre-set fps (or turbo speed when space held or wrong key pressed)
-        # Limit turbo speed to prevent key event processing issues
-        fps = FPS * 5 if (turbo_mode or turbo_timer > 0) else FPS  # 5x speed instead of 10x to improve key responsiveness
+        # run at dynamic fps based on letter count (or turbo speed when space held or wrong key pressed)
+        # Calculate dynamic FPS based on number of words on screen
+        dynamic_fps = calculate_dynamic_fps(missile_list, powerup_list, FPS)
+        
+        # Override with turbo speed if active (limit turbo speed to prevent key event processing issues)
+        fps = dynamic_fps * 5 if (turbo_mode or turbo_timer > 0) else dynamic_fps  # 5x speed instead of 10x to improve key responsiveness
         clock.tick(fps)
 
 

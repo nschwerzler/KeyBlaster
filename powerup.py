@@ -24,8 +24,11 @@ class Powerup():
             self.color = (255, 215, 0)  # Gold color for multiplier powerup
             self.trail_color = (255, 255, 0)  # Yellow trail
         
-        # Horizontal movement across screen
-        self.speed = 1.5  # Slightly slower so it's on screen longer (more tempting but riskier)
+        # Horizontal movement across screen - red powerup moves faster for more challenge
+        if powerup_type == "explosion":
+            self.speed = 2.5  # Red explosion powerup moves faster (less time to type)
+        else:
+            self.speed = 1.5  # Other powerups move at normal speed
         
         # Calculate safe Y range for powerup (closer to cities, but still in safe zone)
         min_y = SCREENSIZE[1] // 3  # Start from upper third of screen
