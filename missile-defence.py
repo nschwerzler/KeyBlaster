@@ -467,6 +467,10 @@ def main():
                         lead_pos = target_obj.get_future_pos(pixels_ahead=20)
                         defense.fire_laser(lead_pos)
                         explosion_list.append(Explosion(lead_pos, 1, INTERCEPT_RADIUS, INTERCEPT_EXPLOSION))
+                        
+                        # Award points for destroying the missile
+                        mcgame.add_score(target_obj.get_points())
+                        
                         # Remove word prefix from tracking before clearing label
                         if hasattr(target_obj, 'label') and target_obj.label:
                             remove_word_prefix(target_obj.label)
